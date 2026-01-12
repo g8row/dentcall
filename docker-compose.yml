@@ -1,0 +1,13 @@
+services:
+  dentcall:
+    build: .
+    ports:
+      - "4000:4000"
+    volumes:
+      - dentcall-data:/app/data
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+
+volumes:
+  dentcall-data:

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db, { User } from '@/lib/db';
-import { verifyPassword, createToken, setAuthCookie } from '@/lib/auth';
+import { verifyPassword, createToken, setAuthCookie, ensureAdminExists } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
     try {
+        // Ensure default admin exists on first login attempt
+        await ensureAdminExists();
+
         const { username, password } = await request.json();
 
         if (!username || !password) {
@@ -40,6 +43,7 @@ export async function POST(request: NextRequest) {
                 id: user.id,
                 username: user.username,
                 role: user.role,
+                mustResetPassword: user.must_reset_password === 1,
             },
         });
     } catch (error) {

@@ -1,0 +1,29 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Build output
+.next
+out
+build
+
+# Database files - MUST exclude to prevent lock issues
+data/
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Dev files
+*.md
+.env*

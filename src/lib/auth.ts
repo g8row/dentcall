@@ -75,20 +75,21 @@ export function generateId(): string {
 
 // Create initial admin user if none exists
 export async function ensureAdminExists(): Promise<void> {
-    const adminExists = db.prepare("SELECT id FROM users WHERE role = 'ADMIN' LIMIT 1").get();
+    try {
+        const adminExists = db.prepare("SELECT id FROM users WHERE role = 'ADMIN' LIMIT 1").get();
 
-    if (!adminExists) {
-        const hashedPassword = await hashPassword('admin123');
-        const id = generateId();
+        if (!adminExists) {
+            const hashedPassword = await hashPassword('admin123');
+            const id = generateId();
 
-        db.prepare(`
-      INSERT INTO users (id, username, password, role, daily_target)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(id, 'admin', hashedPassword, 'ADMIN', 0);
+            db.prepare(`
+          INSERT INTO users (id, username, password, role, daily_target, must_reset_password)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).run(id, 'admin', hashedPassword, 'ADMIN', 0, 1);
 
-        console.log('Created default admin user: admin / admin123');
+            console.log('Created default admin user');
+        }
+    } catch (error) {
+        console.error('Failed to ensure admin exists:', error);
     }
 }
-
-// Initialize admin on module load
-ensureAdminExists().catch(console.error);

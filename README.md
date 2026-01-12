@@ -52,16 +52,29 @@ npm run dev
 
 Open http://localhost:3000 in your browser.
 
-### Default Credentials
-
-- **Admin**: username `admin`, password `admin123`
-
 ### Production Build
 
 ```bash
 npm run build
 npm start
 ```
+
+### Docker
+
+Build and run with Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+Or build manually:
+
+```bash
+docker build -t dentcall .
+docker run -p 3000:3000 -v dentcall-data:/app/data dentcall
+```
+
+The SQLite database is stored in a Docker volume for persistence.
 
 ## Project Structure
 

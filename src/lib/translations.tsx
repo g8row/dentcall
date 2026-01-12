@@ -140,6 +140,17 @@ const translations = {
         top_performers: 'Top Performers',
         top_regions: 'Top Regions',
         no_data: 'No data available',
+
+        // Reset Password
+        reset_password_title: 'Reset Password',
+        reset_password_subtitle: 'Please set a new password to continue',
+        new_password: 'New Password',
+        confirm_password: 'Confirm Password',
+        enter_new_password: 'Enter new password',
+        confirm_new_password: 'Confirm new password',
+        reset_password_button: 'Set Password',
+        passwords_not_match: 'Passwords do not match',
+        password_too_short: 'Password must be at least 6 characters',
     },
     bg: {
         // Common
@@ -276,6 +287,17 @@ const translations = {
         top_performers: 'Топ Служители',
         top_regions: 'Топ Области',
         no_data: 'Няма налични данни',
+
+        // Reset Password
+        reset_password_title: 'Смяна на парола',
+        reset_password_subtitle: 'Моля задайте нова парола за да продължите',
+        new_password: 'Нова Парола',
+        confirm_password: 'Потвърди Парола',
+        enter_new_password: 'Въведете нова парола',
+        confirm_new_password: 'Потвърдете новата парола',
+        reset_password_button: 'Задай Парола',
+        passwords_not_match: 'Паролите не съвпадат',
+        password_too_short: 'Паролата трябва да е поне 6 символа',
     }
 };
 

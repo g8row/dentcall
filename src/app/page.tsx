@@ -32,6 +32,12 @@ export default function LoginPage() {
         return;
       }
 
+      // Redirect to reset password if required
+      if (data.user.mustResetPassword) {
+        router.push('/reset-password');
+        return;
+      }
+
       // Redirect based on role
       if (data.user.role === 'ADMIN') {
         router.push('/admin');
@@ -117,10 +123,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          <p className="text-center text-slate-500 text-sm mt-6">
-            Default admin: admin / admin123
-          </p>
         </div>
       </div>
     </div>
