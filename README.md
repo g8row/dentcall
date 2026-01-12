@@ -1,36 +1,104 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DentCall - Cold Calling Management System
+
+A web application for managing dental clinic cold calling campaigns. Built with Next.js and SQLite.
+
+## Features
+
+### Admin Dashboard
+- Statistics overview with KPIs, charts, and region coverage data
+- Weekly schedule management with calendar view
+- User management for callers
+- Campaign tracking across regions
+- Data export to Excel (dentists, calls, statistics)
+
+### Caller Interface
+- Daily assignment queue
+- Call outcome recording (interested, not interested, no answer, callback)
+- Notes and follow-up tracking
+- Progress tracking against daily targets
+
+### Data Management
+- Region and city-based dentist organization
+- Call history with full audit trail
+- Schedule generation with smart distribution
+- Coverage and interest rate analytics
+
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router)
+- **Database**: SQLite with better-sqlite3
+- **Styling**: Tailwind CSS
+- **Language**: TypeScript
+- **Export**: XLSX for Excel generation
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18 or higher
+- npm or yarn
+
+### Installation
+
+```bash
+npm install
+```
+
+### Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Default Credentials
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Admin**: username `admin`, password `admin123`
 
-## Learn More
+### Production Build
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run build
+npm start
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+├── app/
+│   ├── admin/           # Admin dashboard pages
+│   ├── api/             # API routes
+│   ├── caller/          # Caller interface
+│   └── page.tsx         # Login page
+├── components/          # Reusable UI components
+└── lib/                 # Database and utilities
 
-## Deploy on Vercel
+data/
+└── cold-caller.db       # SQLite database (created on first run)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+scripts/
+└── import-dentists.ts   # Data import utilities
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `/api/auth/*` | Authentication (login, logout, session) |
+| `/api/users/*` | User management |
+| `/api/dentists/*` | Dentist data and locations |
+| `/api/assignments` | Schedule management |
+| `/api/calls/*` | Call recording |
+| `/api/stats/*` | Statistics and analytics |
+| `/api/export` | Excel export |
+| `/api/campaigns` | Campaign management |
+
+## Localization
+
+The application supports English and Bulgarian. Language can be switched from the header.
+
+## License
+
+Private project.
