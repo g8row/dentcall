@@ -45,7 +45,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
     // Schedule options
     const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
     const [selectedCities, setSelectedCities] = useState<string[]>([]);
-    const [availableCities, setAvailableCities] = useState<{ name: string; count: number; available: number }[]>([]);
+    const [availableCities, setAvailableCities] = useState<{ region: string; cities: { name: string; count: number; available: number }[] }[]>([]);
     const [citySearch, setCitySearch] = useState('');
     const [scheduleDays, setScheduleDays] = useState(7);
     const [scheduleStartDate, setScheduleStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -108,17 +108,25 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                 return;
             }
 
-            const allCities: { name: string; count: number; available: number }[] = [];
+            const citiesByRegion: { region: string; cities: { name: string; count: number; available: number }[] }[] = [];
             for (const region of selectedRegions) {
                 const res = await fetch(`/api/dentists/locations?region=${encodeURIComponent(region)}`);
                 const data = await res.json();
                 if (data.cities) {
-                    allCities.push(...data.cities);
+                    // Filter out invalid city names like "[]" or empty strings
+                    const validCities = data.cities.filter((c: any) =>
+                        c.name &&
+                        c.name !== '[]' &&
+                        c.name.trim() !== '' &&
+                        !c.name.includes('[') // Aggressive check for array-like strings
+                    );
+
+                    if (validCities.length > 0) {
+                        citiesByRegion.push({ region, cities: validCities });
+                    }
                 }
             }
-            // Dedup by name
-            const unique = Array.from(new Map(allCities.map(c => [c.name, c])).values());
-            setAvailableCities(unique.sort((a, b) => a.name.localeCompare(b.name)));
+            setAvailableCities(citiesByRegion);
         };
 
         loadCities();
@@ -146,8 +154,16 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
 
     const selectedAvailable = selectedCities.length > 0
         ? selectedCities.reduce((sum, cityName) => {
-            const city = availableCities.find(c => c.name === cityName);
-            return sum + (city?.available || 0);
+            // Find city across all regions
+            let cityAvailable = 0;
+            for (const group of availableCities) {
+                const city = group.cities.find(c => c.name === cityName);
+                if (city) {
+                    cityAvailable = city.available;
+                    break;
+                }
+            }
+            return sum + cityAvailable;
         }, 0)
         : regions
             .filter(r => selectedRegions.includes(r.region))
@@ -325,7 +341,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
 
                         {/* Region Table */}
                         <div
-                            className={`space-y-2 overflow-y-auto border border-slate-700/50 rounded-lg p-2 ${showCityFilter ? 'min-h-0 flex-1 lg:shrink-0' : 'flex-1'}`}
+                            className={`space-y-2 overflow-y-auto border border-slate-700/50 rounded-lg p-2 ${showCityFilter ? 'min-h-0 flex-1 lg:flex-none' : 'flex-1'}`}
                             style={showCityFilter && typeof window !== 'undefined' && window.innerWidth >= 1024 ? { height: `${splitHeight}px` } : {}}
                         >
                             {sortedRegions.map((region) => (
@@ -384,6 +400,17 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                         {/* City Filter Section */}
                         {selectedRegions.length > 0 && availableCities.length > 0 && (
                             <div className={`mt-2 ${showCityFilter ? 'flex-1 flex flex-col min-h-0' : 'shrink-0'}`}>
+
+                                {/* Resize Handle (Desktop Only) */}
+                                {showCityFilter && (
+                                    <div
+                                        onMouseDown={handleMouseDown}
+                                        className="hidden lg:flex h-4 -mt-2 mb-1 cursor-row-resize items-center justify-center hover:bg-slate-700/50 transition-colors rounded"
+                                    >
+                                        <div className="w-8 h-1 bg-slate-600 rounded-full"></div>
+                                    </div>
+                                )}
+
                                 <div className="flex items-center justify-between mb-2 shrink-0 py-2 border-t border-slate-700/50 lg:border-none">
                                     <h3 className="text-sm font-medium text-slate-300">
                                         {t('filter_cities_btn')} ({selectedCities.length || 'All'})
@@ -407,36 +434,49 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                                         />
 
                                         <div className="flex-1 overflow-y-auto space-y-1 border border-slate-700/50 rounded-lg p-2 bg-slate-900/20">
-                                            {availableCities
-                                                .filter(c => c.name.toLowerCase().includes(citySearch.toLowerCase()))
-                                                .map(city => (
-                                                    <label
-                                                        key={city.name}
-                                                        className={`flex items-center gap-3 p-2 rounded cursor-pointer ${selectedCities.includes(city.name)
-                                                            ? 'bg-cyan-500/10 border border-cyan-500/30'
-                                                            : 'hover:bg-slate-800'
-                                                            }`}
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={selectedCities.includes(city.name)}
-                                                            onChange={(e) => {
-                                                                if (e.target.checked) {
-                                                                    setSelectedCities([...selectedCities, city.name]);
-                                                                } else {
-                                                                    setSelectedCities(selectedCities.filter(c => c !== city.name));
-                                                                }
-                                                            }}
-                                                            className="rounded border-slate-600 bg-slate-800"
-                                                        />
-                                                        <div className="flex-1 flex justify-between text-sm">
-                                                            <span className="text-slate-200">{city.name}</span>
-                                                            <span className="text-xs text-slate-500 tabular-nums">
-                                                                {city.available}
-                                                            </span>
+                                            {availableCities.map((group) => {
+                                                const filteredCities = group.cities.filter(c =>
+                                                    c.name.toLowerCase().includes(citySearch.toLowerCase())
+                                                );
+
+                                                if (filteredCities.length === 0) return null;
+
+                                                return (
+                                                    <div key={group.region} className="mb-3 last:mb-0">
+                                                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 mb-1 mt-2 first:mt-0">
+                                                            {group.region}
                                                         </div>
-                                                    </label>
-                                                ))}
+                                                        {filteredCities.map(city => (
+                                                            <label
+                                                                key={`${group.region}-${city.name}`}
+                                                                className={`flex items-center gap-3 p-2 rounded cursor-pointer ${selectedCities.includes(city.name)
+                                                                    ? 'bg-cyan-500/10 border border-cyan-500/30'
+                                                                    : 'hover:bg-slate-800'
+                                                                    }`}
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={selectedCities.includes(city.name)}
+                                                                    onChange={(e) => {
+                                                                        if (e.target.checked) {
+                                                                            setSelectedCities([...selectedCities, city.name]);
+                                                                        } else {
+                                                                            setSelectedCities(selectedCities.filter(c => c !== city.name));
+                                                                        }
+                                                                    }}
+                                                                    className="rounded border-slate-600 bg-slate-800"
+                                                                />
+                                                                <div className="flex-1 flex justify-between text-sm">
+                                                                    <span className="text-slate-200">{city.name}</span>
+                                                                    <span className="text-xs text-slate-500 tabular-nums">
+                                                                        {city.available} / {city.count}
+                                                                    </span>
+                                                                </div>
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}
