@@ -103,6 +103,9 @@ export default function AdminDashboard() {
     const [isImporting, setIsImporting] = useState(false);
     const [importStats, setImportStats] = useState<{ inserted: number; skipped: number; errors: number } | null>(null);
 
+    // Success notification state
+    const [successNotification, setSuccessNotification] = useState<string | null>(null);
+
 
     const loadCalendarData = useCallback(async () => {
         try {
@@ -424,6 +427,26 @@ export default function AdminDashboard() {
 
     return (
         <div className="min-h-screen bg-slate-900 text-white" >
+            {/* Success Notification Toast */}
+            {successNotification && (
+                <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top fade-in duration-300">
+                    <div className="bg-emerald-500 text-white px-6 py-3 rounded-xl shadow-lg shadow-emerald-500/30 flex items-center gap-3">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="font-medium">{successNotification}</span>
+                        <button
+                            onClick={() => setSuccessNotification(null)}
+                            className="ml-2 hover:bg-emerald-600 rounded p-1 transition"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             < header className="bg-slate-800/80 backdrop-blur-lg border-b border-slate-700 sticky top-0 z-50" >
                 <div className="max-w-7xl mx-auto px-4 py-4 flex flex-wrap md:flex-nowrap items-center justify-between gap-4">
@@ -783,10 +806,8 @@ export default function AdminDashboard() {
                                             {selectedDay.total > 0 && (
                                                 <button
                                                     onClick={() => {
-                                                        if (confirm('Are you sure you want to delete all assignments for this day?')) {
-                                                            handleDeleteSchedule(selectedDay.date);
-                                                            setSelectedDay(null);
-                                                        }
+                                                        handleDeleteSchedule(selectedDay.date);
+                                                        setSelectedDay(null);
                                                     }}
                                                     className="px-4 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition"
                                                 >
@@ -1053,6 +1074,11 @@ export default function AdminDashboard() {
                         onClose={() => setShowScheduleModal(false)}
                         onScheduleGenerated={() => {
                             loadCalendarData();
+                            setShowScheduleModal(false);
+                            setActiveTab('calendar');
+                            setSuccessNotification(t('schedule_created_success'));
+                            // Auto-dismiss after 5 seconds
+                            setTimeout(() => setSuccessNotification(null), 5000);
                         }}
                     />
                 )

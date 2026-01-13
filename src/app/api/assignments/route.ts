@@ -280,11 +280,42 @@ export async function POST(request: NextRequest) {
         }
 
         // Clear existing assignments unless appending
+        // Only delete assignments that match the current filter criteria
         if (!append) {
-            db.prepare(`
-        DELETE FROM assignments 
-        WHERE DATE(date) >= ? AND DATE(date) < ?
-      `).run(start_date, format(addDays(new Date(start_date), days), 'yyyy-MM-dd'));
+            let deleteQuery = `
+                DELETE FROM assignments 
+                WHERE DATE(date) >= ? AND DATE(date) < ?
+            `;
+            const deleteParams: string[] = [start_date, format(addDays(new Date(start_date), days), 'yyyy-MM-dd')];
+
+            // If specific callers selected, only delete their assignments
+            if (caller_ids && caller_ids.length > 0) {
+                deleteQuery += ` AND caller_id IN (${caller_ids.map(() => '?').join(',')})`;
+                deleteParams.push(...caller_ids);
+            }
+
+            // If specific regions/cities selected, only delete assignments for dentists in those areas
+            if ((regions && regions.length > 0) || (cities && cities.length > 0)) {
+                let dentistFilter = '';
+                const dentistParams: string[] = [];
+
+                if (regions && regions.length > 0) {
+                    dentistFilter += `region IN (${regions.map(() => '?').join(',')})`;
+                    dentistParams.push(...regions);
+                }
+
+                if (cities && cities.length > 0) {
+                    const cityConditions = cities.map(() => `cities_served LIKE ?`).join(' OR ');
+                    if (dentistFilter) dentistFilter += ' AND ';
+                    dentistFilter += `(${cityConditions})`;
+                    dentistParams.push(...cities.map((c: string) => `%${c}%`));
+                }
+
+                deleteQuery += ` AND dentist_id IN (SELECT id FROM dentists WHERE ${dentistFilter})`;
+                deleteParams.push(...dentistParams);
+            }
+
+            db.prepare(deleteQuery).run(...deleteParams);
         }
 
         // Generate assignments - track used dentists to prevent duplicates

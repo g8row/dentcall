@@ -45,6 +45,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
     // Schedule options
     const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
     const [selectedCities, setSelectedCities] = useState<string[]>([]);
+    const [selectedCallers, setSelectedCallers] = useState<string[]>([]);
     const [availableCities, setAvailableCities] = useState<{ region: string; cities: { name: string; count: number; available: number }[] }[]>([]);
     const [citySearch, setCitySearch] = useState('');
     const [scheduleDays, setScheduleDays] = useState(7);
@@ -180,7 +181,12 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
             .filter(r => selectedRegions.includes(r.region))
             .reduce((sum, r) => sum + r.available_dentists, 0);
 
-    const daysNeeded = totalDailyCapacity > 0 ? Math.ceil(selectedAvailable / totalDailyCapacity) : 0;
+    // Calculate capacity based on selected callers
+    const selectedCallersCapacity = selectedCallers.length > 0
+        ? callers.filter(c => selectedCallers.includes(c.id)).reduce((sum, c) => sum + c.daily_target, 0)
+        : totalDailyCapacity;
+
+    const daysNeeded = selectedCallersCapacity > 0 ? Math.ceil(selectedAvailable / selectedCallersCapacity) : 0;
 
     const handleGenerate = async () => {
         setGenerating(true);
@@ -194,6 +200,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                 days: scheduleDays,
                 regions: selectedRegions.length > 0 ? selectedRegions : undefined,
                 cities: selectedCities.length > 0 ? selectedCities : undefined,
+                caller_ids: selectedCallers.length > 0 ? selectedCallers : undefined,
                 append: appendMode,
             }),
         });
@@ -538,7 +545,12 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                                 <div className="h-px bg-slate-700/50 my-2"></div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-slate-400">{t('team_capacity_daily')}</span>
-                                    <span className="text-white font-medium">{totalDailyCapacity} calls</span>
+                                    <div className="text-right">
+                                        <span className="text-white font-medium">{selectedCallersCapacity} calls</span>
+                                        {selectedCallers.length > 0 && (
+                                            <span className="text-xs text-cyan-400 block">({selectedCallers.length} {t('caller')})</span>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="flex justify-between items-center pt-2">
                                     <span className="text-slate-400">{t('est_time')}</span>
@@ -547,6 +559,61 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                                     </span>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Caller Selection */}
+                        <div className="bg-slate-900/80 rounded-xl p-4 mb-6 border border-slate-700/50 shadow-sm">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('select_callers')}</h3>
+                                <div className="flex gap-2 text-xs">
+                                    <button
+                                        onClick={() => setSelectedCallers(callers.map(c => c.id))}
+                                        className="text-emerald-400 hover:text-emerald-300"
+                                    >
+                                        {t('select_all')}
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedCallers([])}
+                                        className="text-slate-400 hover:text-white"
+                                    >
+                                        {t('clear')}
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="space-y-2 max-h-40 overflow-y-auto">
+                                {callers.map((caller) => (
+                                    <label
+                                        key={caller.id}
+                                        className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all ${selectedCallers.includes(caller.id)
+                                                ? 'bg-cyan-500/10 border border-cyan-500/30'
+                                                : 'bg-slate-800/50 border border-slate-700/50 hover:border-slate-600'
+                                            }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedCallers.includes(caller.id)}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setSelectedCallers([...selectedCallers, caller.id]);
+                                                } else {
+                                                    setSelectedCallers(selectedCallers.filter(id => id !== caller.id));
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500"
+                                        />
+                                        <div className="flex-1 flex justify-between items-center">
+                                            <span className="text-sm text-white">{caller.username}</span>
+                                            <span className="text-xs text-slate-500">{caller.daily_target} {t('calls')}/day</span>
+                                        </div>
+                                    </label>
+                                ))}
+                                {callers.length === 0 && (
+                                    <p className="text-xs text-slate-500 text-center py-2">{t('no_callers_available')}</p>
+                                )}
+                            </div>
+                            {selectedCallers.length === 0 && callers.length > 0 && (
+                                <p className="text-xs text-slate-500 mt-2 text-center">{t('all_callers_hint')}</p>
+                            )}
                         </div>
 
                         {/* Options Form */}

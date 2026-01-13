@@ -79,6 +79,10 @@ const translations = {
         generate_rocket: '🚀 Generate Schedule',
         priority_score: 'Priority',
         coverage_percent: 'Coverage',
+        select_callers: 'Select Callers',
+        no_callers_available: 'No callers available',
+        all_callers_hint: 'Leave empty to include all callers',
+        schedule_created_success: 'Schedule created successfully!',
 
         // Stats / Outcomes
         total_assignments: 'Total Assignments',
@@ -293,6 +297,10 @@ const translations = {
         generate_rocket: '🚀 Генериране',
         priority_score: 'Приоритет',
         coverage_percent: 'Покритие',
+        select_callers: 'Избор на Служители',
+        no_callers_available: 'Няма налични служители',
+        all_callers_hint: 'Оставете празно за всички служители',
+        schedule_created_success: 'Графикът е създаден успешно!',
 
         // Stats / Outcomes
         total_assignments: 'Общо Задачи',
