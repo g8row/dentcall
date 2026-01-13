@@ -424,7 +424,7 @@ export default function AdminDashboard() {
 
                         <button
                             onClick={() => router.push('/admin/campaigns')}
-                            className="px-4 py-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition shrink-0 whitespace-nowrap"
+                            className="px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition shrink-0 whitespace-nowrap"
                         >
                             <span className="hidden sm:inline">{t('campaigns')}</span>
                             <span className="sm:hidden">
@@ -435,7 +435,7 @@ export default function AdminDashboard() {
                         </button>
                         <button
                             onClick={handleLogout}
-                            className="px-4 py-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition shrink-0"
+                            className="px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition shrink-0"
                         >
                             <span className="hidden sm:inline">{t('logout')}</span>
                             <span className="sm:hidden">
@@ -450,12 +450,12 @@ export default function AdminDashboard() {
 
             {/* Tabs */}
             < div className="max-w-7xl mx-auto px-4 py-4" >
-                <div className="flex gap-2 border-b border-slate-700 pb-4 overflow-x-auto no-scrollbar mask-fade-right flex-nowrap">
+                <div className="flex gap-2 border-b border-slate-700 pb-4 overflow-x-auto no-scrollbar flex-nowrap">
                     <button
                         onClick={() => setActiveTab('stats')}
                         className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap shrink-0 ${activeTab === 'stats'
                             ? 'bg-emerald-500 text-white'
-                            : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
                             }`}
                     >
                         {t('statistics')}
@@ -464,7 +464,7 @@ export default function AdminDashboard() {
                         onClick={() => setActiveTab('calendar')}
                         className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap shrink-0 ${activeTab === 'calendar'
                             ? 'bg-emerald-500 text-white'
-                            : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
                             }`}
                     >
                         {t('calendar')}
@@ -473,7 +473,7 @@ export default function AdminDashboard() {
                         onClick={() => setActiveTab('users')}
                         className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap shrink-0 ${activeTab === 'users'
                             ? 'bg-emerald-500 text-white'
-                            : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
                             }`}
                     >
                         {t('users')}
@@ -482,7 +482,7 @@ export default function AdminDashboard() {
                         onClick={() => setActiveTab('data')}
                         className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap shrink-0 ${activeTab === 'data'
                             ? 'bg-emerald-500 text-white'
-                            : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
                             }`}
                     >
                         {t('data_export')}
