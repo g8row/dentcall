@@ -5,17 +5,17 @@ A web application for managing dental clinic cold calling campaigns. Built with 
 ## Features
 
 ### Admin Dashboard
-- Statistics overview with KPIs, charts, and region coverage data
-- Weekly schedule management with calendar view
-- User management for callers
-- Campaign tracking across regions
-- Data export to Excel (dentists, calls, statistics)
+- **Statistics & Analytics**: Real-time KPI cards, Daily Performance Table (calls, interest rate, success rate), and Outcome Distribution charts.
+- **Calendar Management**: Interactive Weekly and Monthly views with detailed day breakdowns via modal popups.
+- **Schedule Planner**: Advanced assignment generation with region filtering and workload balancing.
+- **User Management**: Manage callers and set daily targets.
+- **Data Export/Import**: Seamlessly import new dentist data and export reports to Excel.
 
 ### Caller Interface
-- Daily assignment queue
-- Call outcome recording (interested, not interested, no answer, callback)
-- Notes and follow-up tracking
-- Progress tracking against daily targets
+- **Mobile-Optimized**: Responsive design for on-the-go calling.
+- **Efficient Workflow**: Streamlined daily assignment queue with quick outcome recording.
+- **History & Notes**: Access previous interaction history and add detailed notes.
+- **Progress Tracking**: Real-time progress bars against daily targets.
 
 ### Data Management
 - Region and city-based dentist organization
