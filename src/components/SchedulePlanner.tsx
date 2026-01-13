@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import { useTranslation } from '@/lib/translations';
 
@@ -61,20 +61,31 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
     const [showCityFilter, setShowCityFilter] = useState(false);
     const [splitHeight, setSplitHeight] = useState(300);
 
+    const regionListRef = useRef<HTMLDivElement>(null);
+
     const handleMouseDown = (e: React.MouseEvent) => {
         e.preventDefault();
         const startY = e.clientY;
-        const startHeight = splitHeight;
+        const regionList = regionListRef.current;
+        if (!regionList) return;
+
+        const startHeight = regionList.offsetHeight;
 
         const handleMouseMove = (moveEvent: MouseEvent) => {
             const delta = moveEvent.clientY - startY;
-            setSplitHeight(Math.max(150, startHeight + delta));
+            const newHeight = Math.max(150, startHeight + delta);
+            // Direct DOM update avoids re-renders
+            regionList.style.height = `${newHeight}px`;
         };
 
         const handleMouseUp = () => {
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
             document.body.style.cursor = '';
+            // Optionally sync state here if needed, but for visual only DOM is fine
+            if (regionListRef.current) {
+                setSplitHeight(regionListRef.current.offsetHeight);
+            }
         };
 
         document.addEventListener('mousemove', handleMouseMove);
@@ -341,6 +352,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
 
                         {/* Region Table */}
                         <div
+                            ref={regionListRef}
                             className={`space-y-2 overflow-y-auto border border-slate-700/50 rounded-lg p-2 ${showCityFilter ? 'min-h-0 flex-1 lg:flex-none' : 'flex-1'}`}
                             style={showCityFilter && typeof window !== 'undefined' && window.innerWidth >= 1024 ? { height: `${splitHeight}px` } : {}}
                         >
