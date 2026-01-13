@@ -46,6 +46,7 @@ interface DailyStats {
     not_interested: number;
     no_answer: number;
     callback: number;
+    other: number;
 }
 
 interface RecentCall {
@@ -211,19 +212,44 @@ export async function GET() {
         }));
 
         // 4. Daily Stats (last 30 days)
-        const dailyStats = db.prepare(`
+        const rawDailyStats = db.prepare(`
             SELECT 
                 DATE(called_at) as date,
                 COUNT(*) as total,
                 SUM(CASE WHEN outcome = 'INTERESTED' THEN 1 ELSE 0 END) as interested,
                 SUM(CASE WHEN outcome = 'NOT_INTERESTED' THEN 1 ELSE 0 END) as not_interested,
                 SUM(CASE WHEN outcome = 'NO_ANSWER' THEN 1 ELSE 0 END) as no_answer,
-                SUM(CASE WHEN outcome = 'CALLBACK' OR outcome = 'FOLLOW_UP' THEN 1 ELSE 0 END) as callback
+                SUM(CASE WHEN outcome = 'CALLBACK' OR outcome = 'FOLLOW_UP' THEN 1 ELSE 0 END) as callback,
+                SUM(CASE WHEN outcome NOT IN ('INTERESTED', 'NOT_INTERESTED', 'NO_ANSWER', 'CALLBACK', 'FOLLOW_UP') OR outcome IS NULL THEN 1 ELSE 0 END) as other
             FROM calls
             WHERE DATE(called_at) >= DATE('now', '-30 days')
             GROUP BY DATE(called_at)
             ORDER BY DATE(called_at) ASC
-        `).all() as DailyStats[];
+        `).all() as (DailyStats & { other: number })[];
+
+        // Fill in missing days
+        const dailyStats: (DailyStats & { other: number })[] = [];
+        const today = new Date();
+        for (let i = 29; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+
+            const existing = rawDailyStats.find(s => s.date === dateStr);
+            if (existing) {
+                dailyStats.push(existing);
+            } else {
+                dailyStats.push({
+                    date: dateStr,
+                    total: 0,
+                    interested: 0,
+                    not_interested: 0,
+                    no_answer: 0,
+                    callback: 0,
+                    other: 0
+                });
+            }
+        }
 
         // 5. Outcome Stats
         const outcomes: OutcomeStats = {

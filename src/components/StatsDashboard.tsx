@@ -33,6 +33,7 @@ interface DashboardData {
         not_interested: number;
         no_answer: number;
         callback: number;
+        other: number;
     }>;
     outcomes: {
         interested: number;
@@ -243,40 +244,54 @@ export default function StatsDashboard() {
             {/* Daily Activity Chart & Outcome Distribution */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* Daily Activity */}
-                <div className="lg:col-span-2 bg-slate-800 rounded-xl p-5 border border-slate-700">
-                    <h3 className="text-lg font-semibold mb-4">{t('daily_activity')} <span className="text-sm text-slate-400 font-normal">({t('last_30_days')})</span></h3>
-                    <div className="flex items-end gap-1 h-48">
-                        {data.daily_stats.map(day => {
-                            const height = (day.total / maxDailyTotal) * 100;
-                            const interestedH = day.total > 0 ? (day.interested / day.total) * height : 0;
-                            const notInterestedH = day.total > 0 ? (day.not_interested / day.total) * height : 0;
-                            const noAnswerH = day.total > 0 ? (day.no_answer / day.total) * height : 0;
-                            const callbackH = day.total > 0 ? (day.callback / day.total) * height : 0;
-
-                            return (
-                                <div
-                                    key={day.date}
-                                    className="flex-1 flex flex-col justify-end group relative"
-                                    title={`${day.date}: ${day.total} calls`}
-                                >
-                                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-10">
-                                        {format(new Date(day.date), 'MMM d')}: {day.total}
-                                    </div>
-                                    <div className="w-full flex flex-col">
-                                        <div style={{ height: `${callbackH}%` }} className="bg-amber-500 rounded-t-sm"></div>
-                                        <div style={{ height: `${noAnswerH}%` }} className="bg-slate-500"></div>
-                                        <div style={{ height: `${notInterestedH}%` }} className="bg-red-500"></div>
-                                        <div style={{ height: `${interestedH}%` }} className="bg-emerald-500 rounded-b-sm"></div>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                <div className="lg:col-span-2 bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+                    <div className="p-5 border-b border-slate-700">
+                        <h3 className="text-lg font-semibold">{t('daily_activity')} <span className="text-sm text-slate-400 font-normal">({t('last_30_days')})</span></h3>
                     </div>
-                    <div className="flex gap-4 mt-4 justify-center text-xs text-slate-400">
-                        <span className="flex items-center gap-1"><span className="w-3 h-3 bg-emerald-500 rounded"></span> {t('interested')}</span>
-                        <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-500 rounded"></span> {t('not_interested')}</span>
-                        <span className="flex items-center gap-1"><span className="w-3 h-3 bg-slate-500 rounded"></span> {t('no_answer')}</span>
-                        <span className="flex items-center gap-1"><span className="w-3 h-3 bg-amber-500 rounded"></span> {t('callback')}</span>
+                    <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                        <table className="w-full text-left border-collapse">
+                            <thead className="bg-slate-700/50 text-xs uppercase text-slate-400 sticky top-0 backdrop-blur-sm">
+                                <tr>
+                                    <th className="px-4 py-3 font-medium">Date</th>
+                                    <th className="px-4 py-3 font-medium text-center">Calls</th>
+                                    <th className="px-4 py-3 font-medium text-center">Interested</th>
+                                    <th className="px-4 py-3 font-medium text-center">Success Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-700">
+                                {data.daily_stats.slice().reverse().map(day => {
+                                    const successRate = day.total > 0 ? Math.round((day.interested / day.total) * 100) : 0;
+                                    return (
+                                        <tr key={day.date} className="hover:bg-slate-700/30 transition">
+                                            <td className="px-4 py-3 text-slate-300 font-medium">
+                                                {format(new Date(day.date), 'MMM d, yyyy')}
+                                            </td>
+                                            <td className="px-4 py-3 text-center text-white">
+                                                {day.total}
+                                            </td>
+                                            <td className="px-4 py-3 text-center text-emerald-400 font-medium">
+                                                {day.interested}
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <span className={`px-2 py-1 rounded text-xs font-bold ${successRate >= 20 ? 'bg-emerald-500/20 text-emerald-400' :
+                                                    successRate >= 10 ? 'bg-amber-500/20 text-amber-400' :
+                                                        'bg-slate-700 text-slate-400'
+                                                    }`}>
+                                                    {successRate}%
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                                {data.daily_stats.length === 0 && (
+                                    <tr>
+                                        <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
+                                            {t('no_data')}
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 

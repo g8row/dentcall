@@ -90,6 +90,7 @@ const translations = {
         not_interested: 'Not Interested',
         no_answer: 'No Answer',
         callback: 'Callback/Follow-up',
+        other: 'Other',
         follow_up: 'Follow Up',
 
         // Campaigns

@@ -47,6 +47,8 @@ export async function GET(request: NextRequest) {
             whereClause += ' AND DATE(a.date) = ?';
             params.push(date);
         } else if (week) {
+            const days = parseInt(searchParams.get('days') || '7');
+
             // Validate week string
             const weekDate = new Date(week);
             if (isNaN(weekDate.getTime())) {
@@ -54,10 +56,12 @@ export async function GET(request: NextRequest) {
                 return NextResponse.json({ error: 'Invalid week date format' }, { status: 400 });
             }
 
-            const weekStart = startOfWeek(weekDate, { weekStartsOn: 1 });
-            const weekEnd = endOfWeek(weekDate, { weekStartsOn: 1 });
+            // Calculate range
+            const startDate = new Date(weekDate);
+            const endDate = addDays(startDate, days - 1);
+
             whereClause += ' AND DATE(a.date) >= ? AND DATE(a.date) <= ?';
-            params.push(format(weekStart, 'yyyy-MM-dd'), format(weekEnd, 'yyyy-MM-dd'));
+            params.push(format(startDate, 'yyyy-MM-dd'), format(endDate, 'yyyy-MM-dd'));
         }
 
         // Non-admins can only see their own assignments

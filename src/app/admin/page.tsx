@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { format, addDays, startOfWeek, addWeeks, subWeeks } from 'date-fns';
+import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, subMonths, addMonths, isSameMonth } from 'date-fns';
 import SchedulePlanner from '@/components/SchedulePlanner';
 import StatsDashboard from '@/components/StatsDashboard';
 import { useTranslation } from '@/lib/translations';
@@ -57,13 +57,14 @@ export default function AdminDashboard() {
     const { t } = useTranslation();
     const [user, setUser] = useState<User | null>(null);
     const [users, setUsers] = useState<User[]>([]);
-    const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
+    const [viewDate, setViewDate] = useState(new Date());
+    const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
     const [weekData, setWeekData] = useState<DayData[]>([]);
     const [regions, setRegions] = useState<RegionInfo[]>([]);
     const [loading, setLoading] = useState(true);
     const [showUserModal, setShowUserModal] = useState(false);
     const [showScheduleModal, setShowScheduleModal] = useState(false);
-    const [expandedDay, setExpandedDay] = useState<string | null>(null);
+    const [selectedDay, setSelectedDay] = useState<DayData | null>(null);
     const [showTutorial, setShowTutorial] = useState(false);
 
     // Confirmation Modal State
@@ -103,50 +104,75 @@ export default function AdminDashboard() {
     const [importStats, setImportStats] = useState<{ inserted: number; skipped: number; errors: number } | null>(null);
 
 
-    const loadWeekData = useCallback(async () => {
-        const res = await fetch(`/api/assignments?week=${format(weekStart, 'yyyy-MM-dd')}&stats=true`, { cache: 'no-store' });
-        const data = await res.json();
+    const loadCalendarData = useCallback(async () => {
+        try {
+            setLoading(true);
+            let start;
 
-        const days: DayData[] = [];
-        for (let i = 0; i < 7; i++) {
-            const date = format(addDays(weekStart, i), 'yyyy-MM-dd');
-            const dayStats = data.dayStats?.[date];
-
-            let total = 0;
-            let completed = 0;
-            const outcomes = { interested: 0, not_interested: 0, no_answer: 0, callback: 0, other: 0 };
-
-            if (dayStats?.callers) {
-                Object.values(dayStats.callers).forEach((val: any) => {
-                    const c = val as {
-                        total: number;
-                        completed: number;
-                        interested: number;
-                        not_interested: number;
-                        no_answer: number;
-                        callback: number;
-                        other?: number;
-                    };
-                    total += c.total;
-                    completed += c.completed;
-                    outcomes.interested += c.interested || 0;
-                    outcomes.not_interested += c.not_interested || 0;
-                    outcomes.no_answer += c.no_answer || 0;
-                    outcomes.callback += c.callback || 0;
-                    outcomes.other += c.other || 0;
-                });
+            if (viewMode === 'week') {
+                start = startOfWeek(viewDate, { weekStartsOn: 1 });
+            } else {
+                start = startOfWeek(startOfMonth(viewDate), { weekStartsOn: 1 });
             }
 
-            days.push({
-                date,
-                total,
-                completed,
-                stats: dayStats,
-                outcomes: outcomes as { interested: number; not_interested: number; no_answer: number; callback: number; other: number },
-            });
+            // We need to fetch enough data for the view
+            const daysToFetch = viewMode === 'week' ? 7 : 42; // Max 6 weeks for month view
+            const startDateStr = format(start, 'yyyy-MM-dd');
+
+            // Fetch data for the range
+            const res = await fetch(`/api/assignments?week=${startDateStr}&days=${daysToFetch}&stats=true`, { cache: 'no-store' });
+
+            if (res.ok) {
+                const data = await res.json();
+
+                // Process the data into the array we expect
+                const days: DayData[] = [];
+                for (let i = 0; i < daysToFetch; i++) {
+                    const current = addDays(start, i);
+                    const dateStr = format(current, 'yyyy-MM-dd');
+                    const dayStats = data.dayStats?.[dateStr];
+
+                    let total = 0;
+                    let completed = 0;
+                    const outcomes = { interested: 0, not_interested: 0, no_answer: 0, callback: 0, other: 0 };
+
+                    if (dayStats?.callers) {
+                        Object.values(dayStats.callers).forEach((val: any) => {
+                            const c = val as {
+                                total: number;
+                                completed: number;
+                                interested: number;
+                                not_interested: number;
+                                no_answer: number;
+                                callback: number;
+                                other?: number;
+                            };
+                            total += c.total;
+                            completed += c.completed;
+                            outcomes.interested += c.interested || 0;
+                            outcomes.not_interested += c.not_interested || 0;
+                            outcomes.no_answer += c.no_answer || 0;
+                            outcomes.callback += c.callback || 0;
+                            outcomes.other += c.other || 0;
+                        });
+                    }
+
+                    days.push({
+                        date: dateStr,
+                        total,
+                        completed,
+                        stats: dayStats,
+                        outcomes: outcomes as { interested: number; not_interested: number; no_answer: number; callback: number; other: number },
+                    });
+                }
+                setWeekData(days);
+            }
+        } catch (error) {
+            console.error('Failed to load calendar data', error);
+        } finally {
+            setLoading(false);
         }
-        setWeekData(days);
-    }, [weekStart]);
+    }, [viewDate, viewMode]);
 
     // Load cities when regions change
     useEffect(() => {
@@ -204,18 +230,19 @@ export default function AdminDashboard() {
         };
 
         loadData();
-        loadWeekData();
+        loadData();
+        loadCalendarData();
 
         // Auto-refresh every 60 seconds to show caller updates
         // Only refresh when schedule modal is NOT open and calendar tab is active
         const refreshInterval = setInterval(() => {
             if (!showScheduleModal && activeTab === 'calendar') {
-                loadWeekData();
+                loadCalendarData();
             }
         }, 60000);
 
         return () => clearInterval(refreshInterval);
-    }, [user, loadWeekData, showScheduleModal, activeTab]);
+    }, [user, loadCalendarData, showScheduleModal, activeTab]);
 
     const handleLogout = async () => {
         await fetch('/api/auth/logout', { method: 'POST' });
@@ -285,7 +312,7 @@ export default function AdminDashboard() {
                 message: data.message,
                 region_breakdown: data.region_breakdown,
             });
-            loadWeekData();
+            loadCalendarData();
         } else {
             setScheduleResult({
                 message: `Error: ${data.error}. Available: ${data.available_dentists || 0}`,
@@ -303,7 +330,7 @@ export default function AdminDashboard() {
                 try {
                     const res = await fetch(`/api/assignments?date=${date}`, { method: 'DELETE' });
                     if (res.ok) {
-                        loadWeekData();
+                        loadCalendarData();
                     } else {
                         const data = await res.json();
                         alert(`Failed to delete: ${data.error || 'Unknown error'}`);
@@ -505,25 +532,52 @@ export default function AdminDashboard() {
                         <div className="space-y-6">
                             <div className="flex items-center justify-between flex-wrap gap-4">
                                 <div className="flex items-center gap-4">
-                                    <button
-                                        onClick={() => setWeekStart(subWeeks(weekStart, 1))}
-                                        className="p-2 hover:bg-slate-800 rounded-lg transition"
-                                    >
-                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                        </svg>
-                                    </button>
-                                    <h2 className="text-lg font-semibold">
-                                        {t('week_of')} {format(weekStart, 'MMM d, yyyy')}
+                                    <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700">
+                                        <button
+                                            onClick={() => setViewMode('week')}
+                                            className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${viewMode === 'week' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                                        >
+                                            Week
+                                        </button>
+                                        <button
+                                            onClick={() => setViewMode('month')}
+                                            className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${viewMode === 'month' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                                        >
+                                            Month
+                                        </button>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 bg-slate-800 rounded-lg p-1 border border-slate-700">
+                                        <button
+                                            onClick={() => setViewDate(prev => viewMode === 'week' ? addWeeks(prev, -1) : addMonths(prev, -1))}
+                                            className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            onClick={() => setViewDate(new Date())}
+                                            className="px-3 py-1 text-sm font-medium text-slate-300 hover:text-white transition border-x border-slate-700"
+                                        >
+                                            {t('today') || 'Today'}
+                                        </button>
+                                        <button
+                                            onClick={() => setViewDate(prev => viewMode === 'week' ? addWeeks(prev, 1) : addMonths(prev, 1))}
+                                            className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <h2 className="text-xl font-bold text-white ml-2">
+                                        {viewMode === 'week' ? (
+                                            <>{t('week_of')} {format(viewDate, 'MMM d, yyyy')}</>
+                                        ) : (
+                                            <>{format(viewDate, 'MMMM yyyy')}</>
+                                        )}
                                     </h2>
-                                    <button
-                                        onClick={() => setWeekStart(addWeeks(weekStart, 1))}
-                                        className="p-2 hover:bg-slate-800 rounded-lg transition"
-                                    >
-                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                        </svg>
-                                    </button>
                                 </div>
                                 <button
                                     onClick={() => setShowScheduleModal(true)}
@@ -534,29 +588,41 @@ export default function AdminDashboard() {
                             </div>
 
                             {/* Enhanced Calendar Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+                            <div className={`grid gap-4 ${viewMode === 'week' ? 'grid-cols-1 md:grid-cols-7' : 'grid-cols-7 auto-rows-fr'}`}>
+                                {viewMode === 'month' && ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                                    <div key={day} className="text-center text-sm font-medium text-slate-500 py-2 hidden md:block">
+                                        {day}
+                                    </div>
+                                ))}
+
                                 {weekData.map((day) => {
                                     const percent = day.total > 0 ? Math.round((day.completed / day.total) * 100) : 0;
-                                    const isExpanded = expandedDay === day.date;
+                                    const isCurrentMonth = viewMode === 'week' ? true : isSameMonth(new Date(day.date), viewDate);
+                                    const isToday = format(new Date(), 'yyyy-MM-dd') === day.date;
 
                                     return (
                                         <div
                                             key={day.date}
-                                            className={`bg-slate-800 rounded-xl p-4 border transition-all duration-200 group relative overflow-hidden ${isExpanded ? 'border-emerald-500/50 ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-900/10 md:col-span-2 z-10' : 'border-slate-700 hover:border-slate-600 hover:shadow-md hover:-translate-y-0.5'
-                                                }`}
-                                            onClick={() => setExpandedDay(isExpanded ? null : day.date)}
+                                            className={`bg-slate-800 rounded-xl border transition-all duration-200 group relative overflow-hidden cursor-pointer
+                                                ${!isCurrentMonth ? 'opacity-40 bg-slate-900 border-slate-800' : ''}
+                                                p-3 ${viewMode === 'month' ? 'min-h-[100px]' : 'p-4'} border-slate-700 hover:border-emerald-500/50 hover:shadow-lg hover:-translate-y-0.5
+                                                ${isToday ? 'ring-1 ring-blue-500/50' : ''}
+                                            `}
+                                            onClick={() => setSelectedDay(day)}
                                         >
-                                            <div className="flex items-center justify-between mb-3">
-                                                <div>
-                                                    <div className="text-sm text-slate-400">
-                                                        {format(new Date(day.date), 'EEE')}
-                                                    </div>
-                                                    <div className="text-2xl font-bold">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-baseline gap-1">
+                                                    {viewMode === 'week' && (
+                                                        <div className="text-xs text-slate-400 uppercase font-semibold">
+                                                            {format(new Date(day.date), 'EEE')}
+                                                        </div>
+                                                    )}
+                                                    <div className={`font-bold ${viewMode === 'week' ? 'text-2xl' : 'text-lg text-slate-300'}`}>
                                                         {format(new Date(day.date), 'd')}
                                                     </div>
                                                 </div>
                                                 {day.total > 0 && (
-                                                    <div className={`text-2xl font-bold ${percent >= 75 ? 'text-emerald-400' : percent >= 50 ? 'text-amber-400' : 'text-red-400'
+                                                    <div className={`font-bold ${viewMode === 'week' ? 'text-2xl' : 'text-xs'} ${percent >= 75 ? 'text-emerald-400' : percent >= 50 ? 'text-amber-400' : 'text-red-400'
                                                         }`}>
                                                         {percent}%
                                                     </div>
@@ -566,64 +632,36 @@ export default function AdminDashboard() {
                                             {day.total > 0 ? (
                                                 <>
                                                     {/* Color-coded progress bar */}
-                                                    <div className="h-3 bg-slate-700 rounded-full overflow-hidden mb-2 flex">
+                                                    <div className="h-2 bg-slate-700 rounded-full overflow-hidden mb-2 flex">
                                                         <div style={{ width: `${(day.outcomes.interested / day.total) * 100}%` }} className="h-full bg-emerald-500" title="Interested" />
                                                         <div style={{ width: `${(day.outcomes.not_interested / day.total) * 100}%` }} className="h-full bg-red-500" title="Not Interested" />
                                                         <div style={{ width: `${(day.outcomes.callback / day.total) * 100}%` }} className="h-full bg-amber-500" title="Callback/Follow-up" />
                                                         <div style={{ width: `${(day.outcomes.no_answer / day.total) * 100}%` }} className="h-full bg-slate-400" title="No Answer" />
                                                         <div style={{ width: `${(day.outcomes.other / day.total) * 100}%` }} className="h-full bg-slate-600" title="Other" />
                                                     </div>
-                                                    <div className="text-center text-sm text-slate-400 mb-2">
-                                                        {day.completed} / {day.total} calls
-                                                    </div>
 
-                                                    {/* Region breakdown */}
-                                                    {day.stats?.regions && (
-                                                        <div className="flex flex-col gap-1 mt-3">
-                                                            {Object.entries(day.stats.regions).slice(0, isExpanded ? undefined : 3).map(([region, count]) => (
-                                                                <div key={region} className="flex items-center justify-between text-xs px-2 py-1 bg-slate-700/50 rounded hover:bg-slate-700 transition group">
-                                                                    <span className="text-slate-300 truncate max-w-[120px]" title={region}>
-                                                                        {region}
-                                                                    </span>
-                                                                    <span className="text-slate-400 font-mono ml-2 test-xs bg-slate-800 px-1 rounded">{count}</span>
-                                                                </div>
-                                                            ))}
-                                                            {!isExpanded && Object.keys(day.stats.regions).length > 3 && (
-                                                                <div className="text-xs text-center text-slate-500 hover:text-slate-400 mt-1">
-                                                                    +{Object.keys(day.stats.regions).length - 3} more regions
-                                                                </div>
-                                                            )}
+                                                    {viewMode === 'week' && (
+                                                        <div className="text-center text-sm text-slate-400 mb-2">
+                                                            {day.completed} / {day.total} calls
                                                         </div>
                                                     )}
 
-                                                    {/* Expanded view - caller breakdown */}
-                                                    {isExpanded && day.stats?.callers && (
-                                                        <div className="mt-4 space-y-2 border-t border-slate-700 pt-3">
-                                                            <div className="text-xs font-medium text-slate-400 uppercase">{t('per_caller')}</div>
-                                                            {Object.entries(day.stats.callers).map(([, caller]) => {
-                                                                const callerPercent = caller.total > 0 ? Math.round((caller.completed / caller.total) * 100) : 0;
-                                                                return (
-                                                                    <div key={caller.name} className="flex items-center gap-2">
-                                                                        <span className="text-sm text-white w-20 truncate">{caller.name}</span>
-                                                                        <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden flex">
-                                                                            <div style={{ width: `${(caller.interested / caller.total) * 100}%` }} className="h-full bg-emerald-500" />
-                                                                            <div style={{ width: `${(caller.not_interested / caller.total) * 100}%` }} className="h-full bg-red-500" />
-                                                                            <div style={{ width: `${(caller.callback / caller.total) * 100}%` }} className="h-full bg-amber-500" />
-                                                                            <div style={{ width: `${(caller.no_answer / caller.total) * 100}%` }} className="h-full bg-slate-500" />
-                                                                        </div>
-                                                                        <span className="text-xs text-slate-400">{caller.completed}/{caller.total}</span>
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleDeleteSchedule(day.date);
-                                                                }}
-                                                                className="mt-2 text-xs text-red-400 hover:text-red-300"
-                                                            >
-                                                                {t('delete_day')}
-                                                            </button>
+                                                    {/* Region breakdown - Simplified for Month View */}
+                                                    {day.stats?.regions && (
+                                                        <div className={`flex flex-col gap-1 ${viewMode === 'week' ? 'mt-3' : 'mt-1'}`}>
+                                                            {Object.entries(day.stats.regions).slice(0, viewMode === 'week' ? 3 : 1).map(([region, count]) => (
+                                                                <div key={region} className={`flex items-center justify-between text-xs px-1.5 py-0.5 bg-slate-700/50 rounded ${viewMode === 'week' ? 'hover:bg-slate-700' : ''}`}>
+                                                                    <span className="text-slate-300 truncate max-w-[80px]" title={region}>
+                                                                        {region}
+                                                                    </span>
+                                                                    <span className="text-slate-400 font-mono ml-1">{count}</span>
+                                                                </div>
+                                                            ))}
+                                                            {Object.keys(day.stats.regions).length > (viewMode === 'week' ? 3 : 1) && (
+                                                                <div className="text-[10px] text-center text-slate-500">
+                                                                    +{Object.keys(day.stats.regions).length - (viewMode === 'week' ? 3 : 1)}...
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </>
@@ -636,6 +674,135 @@ export default function AdminDashboard() {
                                     );
                                 })}
                             </div>
+
+                            {/* Day Details Modal */}
+                            {selectedDay && (
+                                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                                    <div className="bg-slate-800 rounded-2xl shadow-xl w-full max-w-lg border border-slate-700 overflow-hidden animate-in fade-in zoom-in duration-200">
+                                        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
+                                            <div>
+                                                <h3 className="text-xl font-bold text-white">
+                                                    {format(new Date(selectedDay.date), 'EEEE, MMMM d')}
+                                                </h3>
+                                                <p className="text-sm text-slate-400">
+                                                    {selectedDay.completed} / {selectedDay.total} calls completed
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => setSelectedDay(null)}
+                                                className="p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition"
+                                            >
+                                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+
+                                        <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                                            {selectedDay.total > 0 ? (
+                                                <div className="space-y-6">
+                                                    {/* Progress Bar */}
+                                                    <div className="space-y-2">
+                                                        <div className="flex justify-between text-sm">
+                                                            <span className="text-slate-400">Progress</span>
+                                                            <span className="text-emerald-400 font-medium">
+                                                                {Math.round((selectedDay.completed / selectedDay.total) * 100)}%
+                                                            </span>
+                                                        </div>
+                                                        <div className="h-4 bg-slate-700 rounded-full overflow-hidden flex">
+                                                            <div style={{ width: `${(selectedDay.outcomes.interested / selectedDay.total) * 100}%` }} className="h-full bg-emerald-500" />
+                                                            <div style={{ width: `${(selectedDay.outcomes.not_interested / selectedDay.total) * 100}%` }} className="h-full bg-red-500" />
+                                                            <div style={{ width: `${(selectedDay.outcomes.callback / selectedDay.total) * 100}%` }} className="h-full bg-amber-500" />
+                                                            <div style={{ width: `${(selectedDay.outcomes.no_answer / selectedDay.total) * 100}%` }} className="h-full bg-slate-400" />
+                                                            <div style={{ width: `${(selectedDay.outcomes.other / selectedDay.total) * 100}%` }} className="h-full bg-slate-600" />
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-3 text-xs text-slate-400 mt-2">
+                                                            <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Interested</div>
+                                                            <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span> Not Interested</div>
+                                                            <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Callback</div>
+                                                            <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-400"></span> No Answer</div>
+                                                            <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-600"></span> Other</div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Region Breakdown */}
+                                                    {selectedDay.stats?.regions && (
+                                                        <div className="space-y-3">
+                                                            <h4 className="text-sm font-medium text-slate-300 uppercase tracking-wider">Regions</h4>
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                                {Object.entries(selectedDay.stats.regions).map(([region, count]) => (
+                                                                    <div key={region} className="flex justify-between items-center bg-slate-900/50 p-2 rounded border border-slate-700">
+                                                                        <span className="text-sm text-slate-300 truncate mr-2" title={region}>{region}</span>
+                                                                        <span className="text-sm font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">{count}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Caller Breakdown */}
+                                                    {selectedDay.stats?.callers && (
+                                                        <div className="space-y-3">
+                                                            <h4 className="text-sm font-medium text-slate-300 uppercase tracking-wider">{t('per_caller')}</h4>
+                                                            <div className="space-y-3">
+                                                                {Object.entries(selectedDay.stats.callers).map(([, caller]) => (
+                                                                    <div key={caller.name} className="bg-slate-900/30 p-3 rounded-lg border border-slate-700/50">
+                                                                        <div className="flex justify-between items-center mb-2">
+                                                                            <span className="font-medium text-white">{caller.name}</span>
+                                                                            <span className="text-xs text-slate-400">{caller.completed}/{caller.total} calls</span>
+                                                                        </div>
+                                                                        <div className="h-2 bg-slate-700 rounded-full overflow-hidden flex">
+                                                                            <div style={{ width: `${caller.total > 0 ? (caller.interested / caller.total) * 100 : 0}%` }} className="h-full bg-emerald-500" />
+                                                                            <div style={{ width: `${caller.total > 0 ? (caller.not_interested / caller.total) * 100 : 0}%` }} className="h-full bg-red-500" />
+                                                                            <div style={{ width: `${caller.total > 0 ? (caller.callback / caller.total) * 100 : 0}%` }} className="h-full bg-amber-500" />
+                                                                            <div style={{ width: `${caller.total > 0 ? (caller.no_answer / caller.total) * 100 : 0}%` }} className="h-full bg-slate-500" />
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="text-center py-8 text-slate-500">
+                                                    <p>{t('no_assignments')}</p>
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedDay(null);
+                                                            setShowScheduleModal(true);
+                                                        }}
+                                                        className="mt-4 text-emerald-400 hover:text-emerald-300 underline"
+                                                    >
+                                                        Schedule Assignments
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="p-4 border-t border-slate-700 bg-slate-800/50 flex justify-end gap-2">
+                                            {selectedDay.total > 0 && (
+                                                <button
+                                                    onClick={() => {
+                                                        if (confirm('Are you sure you want to delete all assignments for this day?')) {
+                                                            handleDeleteSchedule(selectedDay.date);
+                                                            setSelectedDay(null);
+                                                        }
+                                                    }}
+                                                    className="px-4 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition"
+                                                >
+                                                    {t('delete_day')}
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() => setSelectedDay(null)}
+                                                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition"
+                                            >
+                                                Close
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )
                 }
