@@ -34,6 +34,7 @@ interface DayStats {
         not_interested: number;
         no_answer: number;
         callback: number;
+        other: number;
     }>;
 }
 
@@ -47,6 +48,7 @@ interface DayData {
         not_interested: number;
         no_answer: number;
         callback: number;
+        other: number;
     };
 }
 
@@ -112,7 +114,7 @@ export default function AdminDashboard() {
 
             let total = 0;
             let completed = 0;
-            const outcomes = { interested: 0, not_interested: 0, no_answer: 0, callback: 0 };
+            const outcomes = { interested: 0, not_interested: 0, no_answer: 0, callback: 0, other: 0 };
 
             if (dayStats?.callers) {
                 Object.values(dayStats.callers).forEach((val: any) => {
@@ -123,6 +125,7 @@ export default function AdminDashboard() {
                         not_interested: number;
                         no_answer: number;
                         callback: number;
+                        other?: number;
                     };
                     total += c.total;
                     completed += c.completed;
@@ -130,6 +133,7 @@ export default function AdminDashboard() {
                     outcomes.not_interested += c.not_interested || 0;
                     outcomes.no_answer += c.no_answer || 0;
                     outcomes.callback += c.callback || 0;
+                    outcomes.other += c.other || 0;
                 });
             }
 
@@ -138,7 +142,7 @@ export default function AdminDashboard() {
                 total,
                 completed,
                 stats: dayStats,
-                outcomes,
+                outcomes: outcomes as { interested: number; not_interested: number; no_answer: number; callback: number; other: number },
             });
         }
         setWeekData(days);
@@ -408,7 +412,7 @@ export default function AdminDashboard() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 w-full md:w-auto mask-fade-right">
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 w-full md:w-auto">
                         <button
                             onClick={() => setShowTutorial(true)}
                             className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-full text-xs font-bold animate-pulse shadow-lg shadow-indigo-500/50 flex items-center gap-1 shrink-0"
@@ -566,7 +570,8 @@ export default function AdminDashboard() {
                                                         <div style={{ width: `${(day.outcomes.interested / day.total) * 100}%` }} className="h-full bg-emerald-500" title="Interested" />
                                                         <div style={{ width: `${(day.outcomes.not_interested / day.total) * 100}%` }} className="h-full bg-red-500" title="Not Interested" />
                                                         <div style={{ width: `${(day.outcomes.callback / day.total) * 100}%` }} className="h-full bg-amber-500" title="Callback/Follow-up" />
-                                                        <div style={{ width: `${(day.outcomes.no_answer / day.total) * 100}%` }} className="h-full bg-slate-500" title="No Answer" />
+                                                        <div style={{ width: `${(day.outcomes.no_answer / day.total) * 100}%` }} className="h-full bg-slate-400" title="No Answer" />
+                                                        <div style={{ width: `${(day.outcomes.other / day.total) * 100}%` }} className="h-full bg-slate-600" title="Other" />
                                                     </div>
                                                     <div className="text-center text-sm text-slate-400 mb-2">
                                                         {day.completed} / {day.total} calls

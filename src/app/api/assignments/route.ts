@@ -20,6 +20,7 @@ interface DayStats {
     not_interested: number;
     no_answer: number;
     callback: number;
+    other: number;
 }
 
 // Get assignments with enriched stats
@@ -104,6 +105,7 @@ export async function GET(request: NextRequest) {
                 not_interested: number;
                 no_answer: number;
                 callback: number;
+                other: number;
             }>
         }> = {};
 
@@ -119,7 +121,8 @@ export async function GET(request: NextRequest) {
             SUM(CASE WHEN a.completed = 1 AND c.outcome = 'INTERESTED' THEN 1 ELSE 0 END) as interested,
             SUM(CASE WHEN a.completed = 1 AND c.outcome = 'NOT_INTERESTED' THEN 1 ELSE 0 END) as not_interested,
             SUM(CASE WHEN a.completed = 1 AND c.outcome = 'NO_ANSWER' THEN 1 ELSE 0 END) as no_answer,
-            SUM(CASE WHEN a.completed = 1 AND c.outcome IN ('CALLBACK', 'FOLLOW_UP') THEN 1 ELSE 0 END) as callback
+            SUM(CASE WHEN a.completed = 1 AND c.outcome IN ('CALLBACK', 'FOLLOW_UP') THEN 1 ELSE 0 END) as callback,
+            SUM(CASE WHEN a.completed = 1 AND (c.outcome IS NULL OR c.outcome NOT IN ('INTERESTED', 'NOT_INTERESTED', 'NO_ANSWER', 'CALLBACK', 'FOLLOW_UP')) THEN 1 ELSE 0 END) as other
         FROM assignments a
         JOIN dentists d ON a.dentist_id = d.id
         JOIN users u ON a.caller_id = u.id
@@ -155,7 +158,8 @@ export async function GET(request: NextRequest) {
                         interested: 0,
                         not_interested: 0,
                         no_answer: 0,
-                        callback: 0
+                        callback: 0,
+                        other: 0
                     };
                 }
                 const callerStat = dayStats[dateKey].callers[stat.caller_id];
@@ -165,6 +169,7 @@ export async function GET(request: NextRequest) {
                 callerStat.not_interested += stat.not_interested;
                 callerStat.no_answer += stat.no_answer;
                 callerStat.callback += stat.callback;
+                callerStat.other += stat.other;
             }
         }
 
