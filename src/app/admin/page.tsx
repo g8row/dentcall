@@ -1052,7 +1052,7 @@ export default function AdminDashboard() {
                     <SchedulePlanner
                         onClose={() => setShowScheduleModal(false)}
                         onScheduleGenerated={() => {
-                            loadWeekData();
+                            loadCalendarData();
                         }}
                     />
                 )

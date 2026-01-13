@@ -24,6 +24,7 @@ const translations = {
         // Admin Dashboard
         admin_title: 'Admin Dashboard',
         week_of: 'Week of',
+        today: 'Today',
         calendar: 'Calendar',
         role: 'Role',
         target: 'Daily Target',
@@ -237,6 +238,7 @@ const translations = {
         // Admin Dashboard
         admin_title: 'Админ Панел',
         week_of: 'Седмица от',
+        today: 'Днес',
         calendar: 'Календар',
         role: 'Роля',
         target: 'Дневна Цел',
@@ -303,6 +305,7 @@ const translations = {
         not_interested: 'Не се интересува',
         no_answer: 'Няма отговор',
         callback: 'Обратна връзка',
+        other: 'Друго',
         follow_up: 'Последващо',
 
         // Campaigns
