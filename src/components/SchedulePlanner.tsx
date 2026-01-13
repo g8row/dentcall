@@ -236,7 +236,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                             : 'border-transparent text-slate-400 hover:text-slate-300'
                             }`}
                     >
-                        1. Select Regions ({selectedRegions.length})
+                        {t('mobile_step_1')} ({selectedRegions.length})
                     </button>
                     <button
                         onClick={() => setMobileTab('settings')}
@@ -245,7 +245,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                             : 'border-transparent text-slate-400 hover:text-slate-300'
                             }`}
                     >
-                        2. Settings & Generate
+                        {t('mobile_step_2')}
                     </button>
                 </div>
 
@@ -255,28 +255,28 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                         }`}>
                         {/* Smart Suggestions */}
                         <div className="mb-4 flex-shrink-0">
-                            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Suggestions</h3>
+                            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t('suggestions_label')}</h3>
                             <div className="flex flex-wrap gap-2">
                                 {suggestions.hot_picks?.length > 0 && (
                                     <button
                                         onClick={() => applySuggestion('hot_picks')}
                                         className="px-3 py-1.5 text-xs bg-orange-500/20 text-orange-400 border border-orange-500/50 rounded-lg hover:bg-orange-500/30"
                                     >
-                                        🔥 Hot ({suggestions.hot_picks.length})
+                                        🔥 {t('hot_label')} ({suggestions.hot_picks.length})
                                     </button>
                                 )}
                                 <button
                                     onClick={() => setSelectedRegions(suggestions.highest_priority || [])}
                                     className="px-3 py-1.5 text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 rounded-lg hover:bg-emerald-500/30"
                                 >
-                                    ⭐ Top 5
+                                    ⭐ {t('top_5_label')}
                                 </button>
                                 {suggestions.callbacks_pending?.length > 0 && (
                                     <button
                                         onClick={() => applySuggestion('callbacks_pending')}
                                         className="px-3 py-1.5 text-xs bg-amber-500/20 text-amber-400 border border-amber-500/50 rounded-lg hover:bg-amber-500/30"
                                     >
-                                        📞 Callbacks ({suggestions.callbacks_pending.length})
+                                        📞 {t('callbacks_label')} ({suggestions.callbacks_pending.length})
                                     </button>
                                 )}
                             </div>
@@ -296,16 +296,16 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                                 onChange={(e) => setSortBy(e.target.value as SortKey)}
                                 className="w-24 lg:w-32 px-2 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white text-xs lg:text-sm outline-none"
                             >
-                                <option value="priority_score">Priority</option>
-                                <option value="available_dentists">Count</option>
-                                <option value="coverage_percent">Coverage</option>
+                                <option value="priority_score">{t('priority_score')}</option>
+                                <option value="available_dentists">{t('available_dentists')}</option>
+                                <option value="coverage_percent">{t('coverage_percent')}</option>
                             </select>
                         </div>
 
                         {/* Select All / Clear */}
                         <div className="flex justify-between items-center mb-2 flex-shrink-0">
                             <span className="text-xs text-slate-400">
-                                Showing {sortedRegions.length} regions
+                                {t('showing_regions')} {sortedRegions.length} {t('showing_regions_suffix')}
                             </span>
                             <div className="flex gap-3 text-xs">
                                 <button
@@ -386,13 +386,13 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                             <div className={`mt-2 ${showCityFilter ? 'flex-1 flex flex-col min-h-0' : 'shrink-0'}`}>
                                 <div className="flex items-center justify-between mb-2 shrink-0 py-2 border-t border-slate-700/50 lg:border-none">
                                     <h3 className="text-sm font-medium text-slate-300">
-                                        Filter Cities ({selectedCities.length || 'All'})
+                                        {t('filter_cities_btn')} ({selectedCities.length || 'All'})
                                     </h3>
                                     <button
                                         onClick={() => setShowCityFilter(!showCityFilter)}
                                         className="text-xs text-cyan-400 hover:text-cyan-300 px-2 py-1 bg-cyan-950/30 rounded"
                                     >
-                                        {showCityFilter ? 'Hide Lists' : 'Filter by City'}
+                                        {showCityFilter ? t('hide_lists_btn') : t('filter_cities_btn')}
                                     </button>
                                 </div>
 
@@ -400,7 +400,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                                     <div className="flex-1 flex flex-col min-h-0 space-y-2">
                                         <input
                                             type="text"
-                                            placeholder="Search cities..."
+                                            placeholder={t('search_cities')}
                                             value={citySearch}
                                             onChange={(e) => setCitySearch(e.target.value)}
                                             className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white text-sm shrink-0"
@@ -449,7 +449,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                                 onClick={() => setMobileTab('settings')}
                                 className="lg:hidden mt-4 w-full py-3 bg-emerald-500 text-white font-bold rounded-lg shadow-lg"
                             >
-                                Next: Configure Schedule ({selectedAvailable})
+                                {t('next_configure')} ({selectedAvailable})
                             </button>
                         )}
                     </div>
@@ -463,7 +463,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                                 onClick={() => setMobileTab('selection')}
                                 className="text-sm text-slate-400 hover:text-white flex items-center gap-1"
                             >
-                                ← Back to Selection
+                                ← {t('back_to_selection')}
                             </button>
                         </div>
 
@@ -473,23 +473,23 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
 
                             <div className="space-y-3 text-sm">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-slate-400">Selected Scope</span>
+                                    <span className="text-slate-400">{t('selected_scope')}</span>
                                     <div className="text-right">
-                                        <span className="block text-white font-medium">{selectedRegions.length} Regions</span>
+                                        <span className="block text-white font-medium">{selectedRegions.length} {t('showing_regions_suffix')}</span>
                                         {selectedCities.length > 0 && <span className="text-xs text-slate-500">({selectedCities.length} Cities)</span>}
                                     </div>
                                 </div>
                                 <div className="flex justify-between items-center">
-                                    <span className="text-slate-400">Dentists to call</span>
+                                    <span className="text-slate-400">{t('dentists_to_call')}</span>
                                     <span className="text-white font-bold text-lg">{selectedAvailable.toLocaleString()}</span>
                                 </div>
                                 <div className="h-px bg-slate-700/50 my-2"></div>
                                 <div className="flex justify-between items-center">
-                                    <span className="text-slate-400">Team Capacity (Daily)</span>
+                                    <span className="text-slate-400">{t('team_capacity_daily')}</span>
                                     <span className="text-white font-medium">{totalDailyCapacity} calls</span>
                                 </div>
                                 <div className="flex justify-between items-center pt-2">
-                                    <span className="text-slate-400">Est. Time Needed</span>
+                                    <span className="text-slate-400">{t('est_time')}</span>
                                     <span className={`font-bold ${daysNeeded <= scheduleDays ? 'text-emerald-400' : 'text-amber-400'}`}>
                                         {daysNeeded} days
                                     </span>
@@ -511,7 +511,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
 
                             <div className="bg-slate-900/30 p-3 rounded-lg border border-slate-700/50">
                                 <div className="flex justify-between mb-2">
-                                    <label className="text-xs font-medium text-slate-400">Schedule Duration</label>
+                                    <label className="text-xs font-medium text-slate-400">{t('schedule_duration_label')}</label>
                                     <span className="text-xs font-bold text-emerald-400">{scheduleDays} Days</span>
                                 </div>
                                 <input
@@ -530,7 +530,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
 
                             <div className="bg-slate-900/30 p-3 rounded-lg border border-slate-700/50">
                                 <div className="flex justify-between mb-2">
-                                    <label className="text-xs font-medium text-slate-400">Exclude Recently Called</label>
+                                    <label className="text-xs font-medium text-slate-400">{t('exclude_recent_label')}</label>
                                     <span className="text-xs font-bold text-white">{excludeDays} Days</span>
                                 </div>
                                 <input
@@ -554,7 +554,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                                 </div>
                                 <div>
                                     <span className="block text-sm font-medium text-white">{t('append_mode')}</span>
-                                    <span className="block text-xs text-slate-500">Keep existing assignments, only add new</span>
+                                    <span className="block text-xs text-slate-500">{t('keep_existing_desc')}</span>
                                 </div>
                             </label>
                         </div>
@@ -579,11 +579,11 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                                 {generating ? (
                                     <>
                                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        <span>Generating...</span>
+                                        <span>{t('generating')}</span>
                                     </>
                                 ) : (
                                     <>
-                                        <span>🚀 Generate Schedule</span>
+                                        <span>{t('generate_rocket')}</span>
                                         {selectedAvailable > 0 && <span className="bg-emerald-600 px-2 py-0.5 rounded text-xs">({selectedAvailable})</span>}
                                     </>
                                 )}
