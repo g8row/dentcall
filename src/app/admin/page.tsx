@@ -542,7 +542,7 @@ export default function AdminDashboard() {
                                     return (
                                         <div
                                             key={day.date}
-                                            className={`bg-slate-800 rounded-xl p-4 border cursor-pointer transition-all ${isExpanded ? 'border-emerald-500 md:col-span-2' : 'border-slate-700 hover:border-slate-600'
+                                            className={`bg-slate-800 rounded-xl p-4 border transition-all duration-200 group relative overflow-hidden ${isExpanded ? 'border-emerald-500/50 ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-900/10 md:col-span-2 z-10' : 'border-slate-700 hover:border-slate-600 hover:shadow-md hover:-translate-y-0.5'
                                                 }`}
                                             onClick={() => setExpandedDay(isExpanded ? null : day.date)}
                                         >
@@ -579,14 +579,19 @@ export default function AdminDashboard() {
 
                                                     {/* Region breakdown */}
                                                     {day.stats?.regions && (
-                                                        <div className="flex flex-wrap gap-1 mt-2">
-                                                            {Object.entries(day.stats.regions).slice(0, isExpanded ? undefined : 2).map(([region, count]) => (
-                                                                <span key={region} className="text-xs px-2 py-0.5 bg-slate-700 rounded text-slate-300">
-                                                                    {region.slice(0, 6)}… {count}
-                                                                </span>
+                                                        <div className="flex flex-col gap-1 mt-3">
+                                                            {Object.entries(day.stats.regions).slice(0, isExpanded ? undefined : 3).map(([region, count]) => (
+                                                                <div key={region} className="flex items-center justify-between text-xs px-2 py-1 bg-slate-700/50 rounded hover:bg-slate-700 transition group">
+                                                                    <span className="text-slate-300 truncate max-w-[120px]" title={region}>
+                                                                        {region}
+                                                                    </span>
+                                                                    <span className="text-slate-400 font-mono ml-2 test-xs bg-slate-800 px-1 rounded">{count}</span>
+                                                                </div>
                                                             ))}
-                                                            {!isExpanded && Object.keys(day.stats.regions).length > 2 && (
-                                                                <span className="text-xs text-slate-500">+{Object.keys(day.stats.regions).length - 2}</span>
+                                                            {!isExpanded && Object.keys(day.stats.regions).length > 3 && (
+                                                                <div className="text-xs text-center text-slate-500 hover:text-slate-400 mt-1">
+                                                                    +{Object.keys(day.stats.regions).length - 3} more regions
+                                                                </div>
                                                             )}
                                                         </div>
                                                     )}
