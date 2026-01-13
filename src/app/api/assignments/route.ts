@@ -79,10 +79,19 @@ export async function GET(request: NextRequest) {
   `).all(...params);
 
         // Enrich with last call data
-        const enrichedAssignments = (assignments as Array<Record<string, unknown>>).map((a) => ({
-            ...a,
-            phones: JSON.parse((a.phones as string) || '[]'),
-        }));
+        const enrichedAssignments = (assignments as Array<Record<string, unknown>>).map((a) => {
+            let phones = [];
+            try {
+                phones = JSON.parse((a.phones as string) || '[]');
+            } catch (e) {
+                console.error(`[GET /api/assignments] Failed to parse phones for assignment ${a.id}:`, a.phones);
+                phones = [];
+            }
+            return {
+                ...a,
+                phones,
+            };
+        });
 
         // If stats requested (for calendar view), calculate per-day breakdown
         let dayStats: Record<string, {

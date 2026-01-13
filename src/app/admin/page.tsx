@@ -346,17 +346,30 @@ export default function AdminDashboard() {
                             body: JSON.stringify(json),
                         });
 
-                        const data = await res.json();
-                        if (res.ok) {
-                            setImportStats(data);
-                        } else {
-                            alert('Import failed: ' + data.error);
+                        if (res.status === 413) {
+                            throw new Error('File too large. Please increase Nginx "client_max_body_size" limit.');
                         }
-                    } catch (err) {
+
+                        if (!res.ok) {
+                            // Try to parse error JSON, fallback to status text
+                            try {
+                                const data = await res.json();
+                                throw new Error(data.error || res.statusText);
+                            } catch (e) {
+                                throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+                            }
+                        }
+
+                        const data = await res.json();
+                        setImportStats(data);
+
+                    } catch (err: any) {
                         console.error(err);
-                        alert('Failed to parse or upload file. Ensure it is a valid JSON.');
+                        alert(err.message || 'Failed to parse or upload file.');
                     } finally {
                         setIsImporting(false);
+                        // Reset file input
+                        e.target.value = '';
                     }
                 };
                 reader.readAsText(file);
