@@ -59,6 +59,28 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
     const [generating, setGenerating] = useState(false);
     const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
     const [showCityFilter, setShowCityFilter] = useState(false);
+    const [splitHeight, setSplitHeight] = useState(300);
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        e.preventDefault();
+        const startY = e.clientY;
+        const startHeight = splitHeight;
+
+        const handleMouseMove = (moveEvent: MouseEvent) => {
+            const delta = moveEvent.clientY - startY;
+            setSplitHeight(Math.max(150, startHeight + delta));
+        };
+
+        const handleMouseUp = () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = '';
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        document.body.style.cursor = 'row-resize';
+    };
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -207,7 +229,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
 
                 <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
                     {/* Left Panel - Region Selection */}
-                    <div className="flex-1 p-4 overflow-y-auto border-r border-slate-700">
+                    <div className="flex-1 p-4 flex flex-col overflow-hidden border-r border-slate-700">
                         {/* Smart Suggestions */}
                         <div className="mb-4">
                             <h3 className="text-sm font-medium text-slate-300 mb-2">Smart Suggestions</h3>
@@ -293,8 +315,11 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                             </button>
                         </div>
 
-                        {/* Region Table */}
-                        <div className="space-y-1 max-h-[40vh] overflow-y-auto">
+                        {/* Region Table with Flex Layout */}
+                        <div
+                            className={`space-y-1 overflow-y-auto border border-slate-700/50 rounded-lg p-2 ${showCityFilter ? 'shrink-0' : 'flex-1'}`}
+                            style={showCityFilter ? { height: `${splitHeight}px` } : {}}
+                        >
                             {sortedRegions.map((region) => (
                                 <div
                                     key={region.region}
@@ -357,8 +382,19 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
 
                         {/* City Filter Section */}
                         {selectedRegions.length > 0 && availableCities.length > 0 && (
-                            <div className="mt-4 pt-4 border-t border-slate-700">
-                                <div className="flex items-center justify-between mb-2">
+                            <div className={`mt-2 ${showCityFilter ? 'flex-1 flex flex-col min-h-0' : 'shrink-0'}`}>
+
+                                {/* Resizer Handle */}
+                                {showCityFilter && (
+                                    <div
+                                        className="h-4 w-full cursor-row-resize flex items-center justify-center hover:bg-slate-800 transition-colors mb-2 group"
+                                        onMouseDown={handleMouseDown}
+                                    >
+                                        <div className="w-16 h-1 bg-slate-700 rounded-full group-hover:bg-emerald-500 transition-colors" />
+                                    </div>
+                                )}
+
+                                <div className="flex items-center justify-between mb-2 shrink-0">
                                     <h3 className="text-sm font-medium text-slate-300">
                                         Filter by Cities ({selectedCities.length} / {availableCities.length})
                                     </h3>
@@ -371,16 +407,16 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                                 </div>
 
                                 {showCityFilter && (
-                                    <div className="space-y-2">
+                                    <div className="flex-1 flex flex-col min-h-0 space-y-2">
                                         <input
                                             type="text"
                                             placeholder="Search cities..."
                                             value={citySearch}
                                             onChange={(e) => setCitySearch(e.target.value)}
-                                            className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white text-sm"
+                                            className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white text-sm shrink-0"
                                         />
 
-                                        <div className="flex gap-2 text-xs">
+                                        <div className="flex gap-2 text-xs shrink-0">
                                             <button
                                                 onClick={() => setSelectedCities(availableCities.map(c => c.name))}
                                                 className="text-emerald-400 hover:text-emerald-300"
@@ -396,7 +432,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                                             </button>
                                         </div>
 
-                                        <div className="max-h-40 overflow-y-auto space-y-1">
+                                        <div className="flex-1 overflow-y-auto space-y-1 border border-slate-700/50 rounded-lg p-2">
                                             {availableCities
                                                 .filter(c => c.name.toLowerCase().includes(citySearch.toLowerCase()))
                                                 .map(city => (

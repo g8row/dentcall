@@ -7,6 +7,7 @@ import SchedulePlanner from '@/components/SchedulePlanner';
 import StatsDashboard from '@/components/StatsDashboard';
 import { useTranslation } from '@/lib/translations';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import AdminTutorial from '@/components/AdminTutorial';
 
 interface User {
     id: string;
@@ -58,6 +59,7 @@ export default function AdminDashboard() {
     const [showUserModal, setShowUserModal] = useState(false);
     const [showScheduleModal, setShowScheduleModal] = useState(false);
     const [expandedDay, setExpandedDay] = useState<string | null>(null);
+    const [showTutorial, setShowTutorial] = useState(false);
 
     // Schedule generation state
     const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
@@ -71,6 +73,11 @@ export default function AdminDashboard() {
     const [newUser, setNewUser] = useState({ username: '', password: '', daily_target: 50 });
     const [activeTab, setActiveTab] = useState<'calendar' | 'users' | 'data' | 'stats'>('stats');
     const [editingUser, setEditingUser] = useState<User | null>(null);
+
+    // Import state
+    const [isImporting, setIsImporting] = useState(false);
+    const [importStats, setImportStats] = useState<{ inserted: number; skipped: number; errors: number } | null>(null);
+
 
     const loadWeekData = useCallback(async () => {
         const res = await fetch(`/api/assignments?week=${format(weekStart, 'yyyy-MM-dd')}&stats=true`, { cache: 'no-store' });
@@ -274,6 +281,45 @@ export default function AdminDashboard() {
         window.open(`/api/export?type=${type}`, '_blank');
     };
 
+    const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!confirm(`Import ${file.name}? This may take a while.`)) return;
+
+        setIsImporting(true);
+        setImportStats(null);
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const text = event.target?.result as string;
+                const json = JSON.parse(text);
+
+                const res = await fetch('/api/dentists/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(json),
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    setImportStats(data);
+                } else {
+                    alert('Import failed: ' + data.error);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Failed to parse or upload file. Ensure it is a valid JSON.');
+            } finally {
+                setIsImporting(false);
+                // Reset file input
+                e.target.value = '';
+            }
+        };
+        reader.readAsText(file);
+    };
+
     const getProgressColor = (percent: number) => {
         if (percent >= 75) return 'bg-emerald-500';
         if (percent >= 50) return 'bg-amber-500';
@@ -305,6 +351,13 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowTutorial(true)}
+                            className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-full text-xs font-bold animate-pulse shadow-lg shadow-indigo-500/50 flex items-center gap-1 mr-2"
+                        >
+                            <span className="text-sm">🎓</span>
+                            {t('start_tutorial')}
+                        </button>
                         <LanguageSwitcher />
                         <button
                             onClick={() => router.push('/admin/campaigns')}
@@ -597,9 +650,59 @@ export default function AdminDashboard() {
                 {/* Data Tab */}
                 {activeTab === 'data' && (
                     <div className="space-y-6">
-                        <h2 className="text-lg font-semibold">Data Export</h2>
+                        <h2 className="text-lg font-semibold">Data Management</h2>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {importStats && (
+                            <div className="bg-slate-800 border border-emerald-500/50 rounded-xl p-4 mb-6">
+                                <h3 className="tex-lg font-medium text-emerald-400 mb-2">Import Complete</h3>
+                                <div className="grid grid-cols-3 gap-4 text-center">
+                                    <div className="bg-slate-900/50 p-3 rounded-lg">
+                                        <div className="text-2xl font-bold text-white">{importStats.inserted}</div>
+                                        <div className="text-sm text-slate-400">Inserted</div>
+                                    </div>
+                                    <div className="bg-slate-900/50 p-3 rounded-lg">
+                                        <div className="text-2xl font-bold text-amber-400">{importStats.skipped}</div>
+                                        <div className="text-sm text-slate-400">Duplicate/Skipped</div>
+                                    </div>
+                                    <div className="bg-slate-900/50 p-3 rounded-lg">
+                                        <div className="text-2xl font-bold text-red-400">{importStats.errors}</div>
+                                        <div className="text-sm text-slate-400">Errors</div>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setImportStats(null)}
+                                    className="mt-4 text-sm text-slate-400 hover:text-white underline"
+                                >
+                                    Dismiss
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {/* Import Card */}
+                            <div className="p-6 bg-slate-800 rounded-xl border border-dashed border-slate-600 hover:border-emerald-500 transition text-left relative group">
+                                <input
+                                    type="file"
+                                    accept=".json"
+                                    onChange={handleImport}
+                                    disabled={isImporting}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
+                                />
+                                <div className="text-emerald-400 text-2xl mb-2">
+                                    {isImporting ? (
+                                        <div className="animate-spin h-8 w-8 border-2 border-emerald-500 border-t-transparent rounded-full" />
+                                    ) : (
+                                        '📥'
+                                    )}
+                                </div>
+                                <h3 className="font-semibold mb-1">
+                                    {isImporting ? 'Importing...' : t('import_dentists') || 'Import Dentists'}
+                                </h3>
+                                <p className="text-sm text-slate-400">
+                                    Drag & drop JSON file here or click to upload
+                                </p>
+                            </div>
+
                             <button
                                 onClick={() => handleExport('dentists')}
                                 className="p-6 bg-slate-800 rounded-xl border border-slate-700 hover:border-emerald-500 transition text-left"
@@ -695,6 +798,11 @@ export default function AdminDashboard() {
                         loadWeekData();
                     }}
                 />
+            )}
+
+            {/* Tutorial Modal */}
+            {showTutorial && (
+                <AdminTutorial onClose={() => setShowTutorial(false)} />
             )}
         </div>
     );

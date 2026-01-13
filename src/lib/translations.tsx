@@ -88,6 +88,7 @@ const translations = {
         export_dentists: 'Export All Dentists',
         export_calls: 'Export Call Logs',
         export_stats: 'Export Caller Stats',
+        import_dentists: 'Import Dentists',
 
         // Dashboard Statistics
         statistics: 'Statistics',
@@ -151,8 +152,47 @@ const translations = {
         reset_password_button: 'Set Password',
         passwords_not_match: 'Passwords do not match',
         password_too_short: 'Password must be at least 6 characters',
+        // Tutorial
+        tutorial_title: 'Admin Dashboard Guide',
+        tutorial_description: 'Welcome to your cold calling command center. Here is how to use it proficiently.',
+        tut_schedule_title: '📅 Schedule Planner',
+        tut_schedule_desc: 'Located in the Calendar tab. Click "Schedule Planner" to generate call assignments. Filter by region or city, set the date, and the system effectively distributes calls among available agents. It remembers which dentists were called recently and avoids them.',
+        tut_stats_title: '📊 Statistics',
+        tut_stats_desc: 'Track performance in real-time. See interested rates, daily progress, and top performers. Use "Weekly Comparison" to spot trends.',
+        tut_calendar_title: '🗓️ Calendar View',
+        tut_calendar_desc: 'Your weekly overview. Click on any day to see detailed assignments. You can delete specific day schedules if needed.',
+        tut_users_title: '👥 Managing Callers',
+        tut_users_desc: 'Add new callers in the "Users" tab. Set daily targets which affect how many calls they get assigned in the scheduler.',
+        tut_export_title: '📥 Data Export & Import',
+        tut_export_desc: 'Download full reports or import new data. You can drag and drop new JSON files to import them directly.',
+        tut_campaigns_title: '🎯 Campaigns',
+        tut_campaigns_desc: 'Track long-term progress. A campaign is automatically created when you generate a schedule. Monitor completion rates and outcomes here.',
+        start_tutorial: 'Start Tutorial',
+        next: 'Next',
+        previous: 'Previous',
+        finish: 'Finish',
     },
     bg: {
+        // Tutorial
+        tutorial_title: 'Ръководство за Админ Панел',
+        tutorial_description: 'Добре дошли във вашия команден център. Ето как да го използвате ефективно.',
+        tut_schedule_title: '📅 Планиране на График',
+        tut_schedule_desc: 'Намира се в таб "Календар". Натиснете "Планиране на График" за да генерирате задачи. Филтрирайте по област или град, изберете дати, и системата автоматично разпределя обажданията. Тя помни кой кога е звънян и избягва повторения.',
+        tut_stats_title: '📊 Статистика',
+        tut_stats_desc: 'Следете представянето в реално време. Вижте процента на заинтересовани и дневния прогрес. Използвайте сравненията за да откриете тенденции.',
+        tut_calendar_title: '🗓️ Календар',
+        tut_calendar_desc: 'Вашият седмичен преглед. Натиснете върху ден за да видите детайли. Може да изтривате графици за конкретни дни.',
+        tut_users_title: '👥 Управление на Служители',
+        tut_users_desc: 'Добавяйте нови служители в таб "Потребители". Задавайте дневни цели, което определя колко обаждания ще получат.',
+        tut_export_title: '📥 Експорт и Импорт',
+        tut_export_desc: 'Сваляйте пълни отчети или добавяйте нови данни. Може да влачите нови JSON файлове за директен импорт.',
+        tut_campaigns_title: '🎯 Кампании',
+        tut_campaigns_desc: 'Следете дългосрочния прогрес. Кампания се създава автоматично при генериране на график. Следете успеваемостта тук.',
+        start_tutorial: 'Начало',
+        next: 'Напред',
+        previous: 'Назад',
+        finish: 'Край',
+
         // Common
         loading: 'Зареждане...',
         error: 'Грешка',
@@ -235,6 +275,7 @@ const translations = {
         export_dentists: 'Експорт Зъболекари',
         export_calls: 'Експорт История Обаждания',
         export_stats: 'Експорт Статистика',
+        import_dentists: 'Импорт Зъболекари',
 
         // Dashboard Statistics
         statistics: 'Статистика',

@@ -4,12 +4,12 @@ import fs from 'fs';
 import { randomUUID } from 'crypto';
 
 const DB_PATH = path.join(process.cwd(), 'data', 'cold-caller.db');
-const JSON_PATH = path.join(process.cwd(), '..', 'dentists_optimized.json');
+const JSON_PATH = path.join(process.cwd(), '..', 'dentists_cleaned.json');
 
 // Ensure data directory exists
 const dataDir = path.dirname(DB_PATH);
 if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+  fs.mkdirSync(dataDir, { recursive: true });
 }
 
 const db = new Database(DB_PATH);
@@ -23,6 +23,7 @@ db.exec(`
     password TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'CALLER',
     daily_target INTEGER NOT NULL DEFAULT 50,
+    must_reset_password INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -71,69 +72,112 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_assignments_caller ON assignments(caller_id);
 `);
 
-interface DentistData {
-    facility_name: string;
-    region: string;
-    manager?: string;
-    phones: string[];
-    services?: string[];
-    cities_served?: string[];
-    locations?: { municipality: string; city: string; address: string }[];
-    staff?: { name: string; specialty: string }[];
-    staff_count?: number;
-}
 
 async function importData() {
-    console.log('Reading dentist data...');
+  console.log('Reading dentist data...');
 
-    if (!fs.existsSync(JSON_PATH)) {
-        console.error(`File not found: ${JSON_PATH}`);
-        process.exit(1);
-    }
+  if (!fs.existsSync(JSON_PATH)) {
+    console.error(`File not found: ${JSON_PATH}`);
+    process.exit(1);
+  }
 
-    const rawData = fs.readFileSync(JSON_PATH, 'utf-8');
-    const dentists: DentistData[] = JSON.parse(rawData);
+  const rawData = fs.readFileSync(JSON_PATH, 'utf-8');
+  const dentists = JSON.parse(rawData);
 
-    console.log(`Found ${dentists.length} dentist records`);
+  console.log(`Found ${dentists.length} dentist records in source file`);
 
-    // Clear existing data
-    console.log('Clearing existing dentist data...');
-    db.exec('DELETE FROM dentists');
+  // Prepare check statement
+  const checkStmt = db.prepare('SELECT id FROM dentists WHERE facility_name = ? AND region = ?');
 
-    // Insert in batches
-    const insertStmt = db.prepare(`
+  // Insert statement
+  const insertStmt = db.prepare(`
     INSERT INTO dentists (id, facility_name, region, manager, phones, services, cities_served, locations, staff, staff_count)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-    const insertMany = db.transaction((records: DentistData[]) => {
-        for (const d of records) {
-            insertStmt.run(
-                randomUUID(),
-                d.facility_name,
-                d.region,
-                d.manager || null,
-                JSON.stringify(d.phones || []),
-                d.services ? d.services.join('; ') : null,
-                d.cities_served ? d.cities_served.join('; ') : null,
-                d.locations ? JSON.stringify(d.locations) : null,
-                d.staff ? JSON.stringify(d.staff) : null,
-                d.staff_count || null
-            );
+  let inserted = 0;
+  let skipped = 0;
+  let errors = 0;
+
+  const insertMany = db.transaction((records: any[]) => {
+    for (const d of records) {
+      try {
+        // Map fields
+        const facility_name = d.name;
+        const region = d.region_filter;
+
+        if (!facility_name || !region) {
+          console.warn(`Skipping invalid record: Missing name or region`);
+          errors++;
+          continue;
         }
-    });
 
-    console.log('Importing dentist data...');
-    insertMany(dentists);
+        // Duplicate check
+        const existing = checkStmt.get(facility_name, region);
+        if (existing) {
+          skipped++;
+          continue;
+        }
 
-    const count = db.prepare('SELECT COUNT(*) as count FROM dentists').get() as { count: number };
-    console.log(`✅ Successfully imported ${count.count} dentist records`);
+        // Prepare data
+        const manager = d.manager || null;
+        const phones = JSON.stringify(d.phones || []);
+        const services = JSON.stringify(d.contract_packages || []);
 
-    // Verify regions
-    const regions = db.prepare('SELECT DISTINCT region FROM dentists').all() as { region: string }[];
-    console.log(`\nRegions: ${regions.map(r => r.region).join(', ')}`);
+        // Extract cities
+        const cities = new Set<string>();
+        if (d.locations && Array.isArray(d.locations)) {
+          d.locations.forEach((loc: any) => {
+            if (loc.city) cities.add(loc.city);
+          });
+        }
+        const cities_served = JSON.stringify(Array.from(cities));
 
-    db.close();
+        const locations = JSON.stringify(d.locations || []);
+        const staff = JSON.stringify(d.dentists || []);
+        const staff_count = d.dentists ? d.dentists.length : 0;
+
+        insertStmt.run(
+          randomUUID(),
+          facility_name,
+          region,
+          manager,
+          phones,
+          services,
+          cities_served,
+          locations,
+          staff,
+          staff_count
+        );
+        inserted++;
+
+        if (inserted % 500 === 0) {
+          console.log(`Imported ${inserted} records...`);
+        }
+      } catch (e) {
+        console.error(`Error processing record: ${e}`);
+        errors++;
+      }
+    }
+  });
+
+  console.log('Importing dentist data...');
+  insertMany(dentists);
+
+  console.log('-----------------------------------');
+  console.log(`Import Summary:`);
+  console.log(`- Inserted: ${inserted}`);
+  console.log(`- Skipped (Duplicates): ${skipped}`);
+  console.log(`- Errors: ${errors}`);
+
+  const count = db.prepare('SELECT COUNT(*) as count FROM dentists').get() as { count: number };
+  console.log(`✅ Successfully imported ${count.count} dentist records`);
+
+  // Verify regions
+  const regions = db.prepare('SELECT DISTINCT region FROM dentists').all() as { region: string }[];
+  console.log(`\nRegions: ${regions.map(r => r.region).join(', ')}`);
+
+  db.close();
 }
 
 importData().catch(console.error);
