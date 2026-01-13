@@ -30,35 +30,45 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const date = searchParams.get('date');
-    const week = searchParams.get('week');
-    const callerId = searchParams.get('caller_id');
-    const includeStats = searchParams.get('stats') === 'true';
+    try {
+        const { searchParams } = new URL(request.url);
+        const date = searchParams.get('date');
+        const week = searchParams.get('week');
+        const callerId = searchParams.get('caller_id');
+        const includeStats = searchParams.get('stats') === 'true';
 
-    let whereClause = '1=1';
-    const params: string[] = [];
+        console.log('[GET /api/assignments] Params:', { date, week, callerId, includeStats });
 
-    if (date) {
-        whereClause += ' AND DATE(a.date) = ?';
-        params.push(date);
-    } else if (week) {
-        const weekStart = startOfWeek(new Date(week), { weekStartsOn: 1 });
-        const weekEnd = endOfWeek(new Date(week), { weekStartsOn: 1 });
-        whereClause += ' AND DATE(a.date) >= ? AND DATE(a.date) <= ?';
-        params.push(format(weekStart, 'yyyy-MM-dd'), format(weekEnd, 'yyyy-MM-dd'));
-    }
+        let whereClause = '1=1';
+        const params: string[] = [];
 
-    // Non-admins can only see their own assignments
-    if (session.role !== 'ADMIN') {
-        whereClause += ' AND a.caller_id = ?';
-        params.push(session.user.id);
-    } else if (callerId) {
-        whereClause += ' AND a.caller_id = ?';
-        params.push(callerId);
-    }
+        if (date) {
+            whereClause += ' AND DATE(a.date) = ?';
+            params.push(date);
+        } else if (week) {
+            // Validate week string
+            const weekDate = new Date(week);
+            if (isNaN(weekDate.getTime())) {
+                console.error('[GET /api/assignments] Invalid week date:', week);
+                return NextResponse.json({ error: 'Invalid week date format' }, { status: 400 });
+            }
 
-    const assignments = db.prepare(`
+            const weekStart = startOfWeek(weekDate, { weekStartsOn: 1 });
+            const weekEnd = endOfWeek(weekDate, { weekStartsOn: 1 });
+            whereClause += ' AND DATE(a.date) >= ? AND DATE(a.date) <= ?';
+            params.push(format(weekStart, 'yyyy-MM-dd'), format(weekEnd, 'yyyy-MM-dd'));
+        }
+
+        // Non-admins can only see their own assignments
+        if (session.role !== 'ADMIN') {
+            whereClause += ' AND a.caller_id = ?';
+            params.push(session.user.id);
+        } else if (callerId) {
+            whereClause += ' AND a.caller_id = ?';
+            params.push(callerId);
+        }
+
+        const assignments = db.prepare(`
     SELECT a.*, d.facility_name, d.region, d.phones, d.manager, d.cities_served,
            u.username as caller_name
     FROM assignments a
@@ -68,28 +78,28 @@ export async function GET(request: NextRequest) {
     ORDER BY a.date, d.region, d.facility_name
   `).all(...params);
 
-    // Enrich with last call data
-    const enrichedAssignments = (assignments as Array<Record<string, unknown>>).map((a) => ({
-        ...a,
-        phones: JSON.parse((a.phones as string) || '[]'),
-    }));
+        // Enrich with last call data
+        const enrichedAssignments = (assignments as Array<Record<string, unknown>>).map((a) => ({
+            ...a,
+            phones: JSON.parse((a.phones as string) || '[]'),
+        }));
 
-    // If stats requested (for calendar view), calculate per-day breakdown
-    let dayStats: Record<string, {
-        regions: Record<string, number>;
-        callers: Record<string, {
-            total: number;
-            completed: number;
-            name: string;
-            interested: number;
-            not_interested: number;
-            no_answer: number;
-            callback: number;
-        }>
-    }> = {};
+        // If stats requested (for calendar view), calculate per-day breakdown
+        let dayStats: Record<string, {
+            regions: Record<string, number>;
+            callers: Record<string, {
+                total: number;
+                completed: number;
+                name: string;
+                interested: number;
+                not_interested: number;
+                no_answer: number;
+                callback: number;
+            }>
+        }> = {};
 
-    if (includeStats && session.role === 'ADMIN') {
-        const statsQuery = db.prepare(`
+        if (includeStats && session.role === 'ADMIN') {
+            const statsQuery = db.prepare(`
         SELECT 
             DATE(a.date) as date,
             d.region,
@@ -118,41 +128,46 @@ export async function GET(request: NextRequest) {
         ORDER BY DATE(a.date), d.region
         `).all(...params) as DayStats[];
 
-        for (const stat of statsQuery) {
-            const dateKey = stat.date;
-            if (!dayStats[dateKey]) {
-                dayStats[dateKey] = { regions: {}, callers: {} };
-            }
+            for (const stat of statsQuery) {
+                const dateKey = stat.date;
+                if (!dayStats[dateKey]) {
+                    dayStats[dateKey] = { regions: {}, callers: {} };
+                }
 
-            // Aggregate regions
-            dayStats[dateKey].regions[stat.region] = (dayStats[dateKey].regions[stat.region] || 0) + stat.total;
+                // Aggregate regions
+                dayStats[dateKey].regions[stat.region] = (dayStats[dateKey].regions[stat.region] || 0) + stat.total;
 
-            // Aggregate callers
-            if (!dayStats[dateKey].callers[stat.caller_id]) {
-                dayStats[dateKey].callers[stat.caller_id] = {
-                    total: 0,
-                    completed: 0,
-                    name: stat.caller_name,
-                    interested: 0,
-                    not_interested: 0,
-                    no_answer: 0,
-                    callback: 0
-                };
+                // Aggregate callers
+                if (!dayStats[dateKey].callers[stat.caller_id]) {
+                    dayStats[dateKey].callers[stat.caller_id] = {
+                        total: 0,
+                        completed: 0,
+                        name: stat.caller_name,
+                        interested: 0,
+                        not_interested: 0,
+                        no_answer: 0,
+                        callback: 0
+                    };
+                }
+                const callerStat = dayStats[dateKey].callers[stat.caller_id];
+                callerStat.total += stat.total;
+                callerStat.completed += stat.completed;
+                callerStat.interested += stat.interested;
+                callerStat.not_interested += stat.not_interested;
+                callerStat.no_answer += stat.no_answer;
+                callerStat.callback += stat.callback;
             }
-            const callerStat = dayStats[dateKey].callers[stat.caller_id];
-            callerStat.total += stat.total;
-            callerStat.completed += stat.completed;
-            callerStat.interested += stat.interested;
-            callerStat.not_interested += stat.not_interested;
-            callerStat.no_answer += stat.no_answer;
-            callerStat.callback += stat.callback;
         }
-    }
 
-    return NextResponse.json({
-        assignments: enrichedAssignments,
-        dayStats: includeStats ? dayStats : undefined
-    });
+        return NextResponse.json({
+            assignments: enrichedAssignments,
+            dayStats: includeStats ? dayStats : undefined
+        });
+
+    } catch (error) {
+        console.error('[GET /api/assignments] Error:', error);
+        return NextResponse.json({ error: 'Internal Server Error', details: String(error) }, { status: 500 });
+    }
 }
 
 // Generate schedule (admin only)
