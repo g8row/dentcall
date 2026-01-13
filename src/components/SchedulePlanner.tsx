@@ -325,7 +325,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
 
                         {/* Region Table */}
                         <div
-                            className={`space-y-2 overflow-y-auto border border-slate-700/50 rounded-lg p-2 ${showCityFilter ? 'shrink-0' : 'flex-1'}`}
+                            className={`space-y-2 overflow-y-auto border border-slate-700/50 rounded-lg p-2 ${showCityFilter ? 'min-h-0 flex-1 lg:shrink-0' : 'flex-1'}`}
                             style={showCityFilter && typeof window !== 'undefined' && window.innerWidth >= 1024 ? { height: `${splitHeight}px` } : {}}
                         >
                             {sortedRegions.map((region) => (
