@@ -80,11 +80,10 @@
 **Impact**: API could be called from malicious sites.
 **Fix**: Restrict to actual frontend domain(s) in production.
 
-### 13. No Rate Limiting
-**Location**: All API routes
-**Problem**: No protection against brute force login attempts or API abuse.
-**Impact**: Security vulnerability.
-**Fix**: Add rate limiting middleware (e.g., upstash/ratelimit for serverless).
+### ~~13. No Rate Limiting~~ ✅ PARTIALLY FIXED
+**Location**: `src/lib/rate-limit.ts`, `src/app/api/auth/login/route.ts`
+**Status**: Fixed login endpoint in commit `77657c2`
+**Solution**: Added in-memory rate limiter with login protection (5 attempts/15min per IP). Other endpoints have the utility available but not yet applied.
 
 ### 14. Console Logging in Production
 **Location**: Multiple API routes
@@ -96,6 +95,6 @@
 
 ## 📋 Data Quality Notes
 
-- **Missing Translations**: Some UI strings (e.g., "Preferred", "Manager:", "Cancel") are hardcoded in English in `caller/page.tsx`.
+- ~~**Missing Translations**: Some UI strings (e.g., "Preferred", "Manager:", "Cancel") are hardcoded in English in `caller/page.tsx`.~~ ✅ Fixed in commit `7d1816e`
 - **Cities Parsing**: Multiple code paths handle `cities_served` as JSON array, semicolon-separated string, or plain string. Needs standardization.
 - **Date Handling**: Mix of local dates and UTC. Server uses SQLite `datetime('now')` (UTC), but UI displays may assume local time.
