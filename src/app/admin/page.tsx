@@ -9,6 +9,7 @@ import { useTranslation } from '@/lib/translations';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import AdminTutorial from '@/components/AdminTutorial';
 import ConfirmModal from '@/components/ConfirmModal';
+import AddDentistModal from '@/components/AddDentistModal';
 
 // ... (existing interfaces)
 
@@ -26,6 +27,7 @@ interface RegionInfo {
 
 interface DayStats {
     regions: Record<string, number>;
+    campaigns: Record<string, { name: string; total: number; completed: number }>;
     callers: Record<string, {
         total: number;
         completed: number;
@@ -34,6 +36,7 @@ interface DayStats {
         not_interested: number;
         no_answer: number;
         callback: number;
+        order_taken: number;
         other: number;
     }>;
 }
@@ -48,6 +51,7 @@ interface DayData {
         not_interested: number;
         no_answer: number;
         callback: number;
+        order_taken: number;
         other: number;
     };
 }
@@ -66,6 +70,7 @@ export default function AdminDashboard() {
     const [showScheduleModal, setShowScheduleModal] = useState(false);
     const [selectedDay, setSelectedDay] = useState<DayData | null>(null);
     const [showTutorial, setShowTutorial] = useState(false);
+    const [showAddDentistModal, setShowAddDentistModal] = useState(false);
 
     // Confirmation Modal State
     const [confirmModal, setConfirmModal] = useState<{
@@ -137,7 +142,7 @@ export default function AdminDashboard() {
 
                     let total = 0;
                     let completed = 0;
-                    const outcomes = { interested: 0, not_interested: 0, no_answer: 0, callback: 0, other: 0 };
+                    const outcomes = { interested: 0, not_interested: 0, no_answer: 0, callback: 0, order_taken: 0, other: 0 };
 
                     if (dayStats?.callers) {
                         Object.values(dayStats.callers).forEach((val: any) => {
@@ -148,6 +153,7 @@ export default function AdminDashboard() {
                                 not_interested: number;
                                 no_answer: number;
                                 callback: number;
+                                order_taken?: number;
                                 other?: number;
                             };
                             total += c.total;
@@ -156,6 +162,7 @@ export default function AdminDashboard() {
                             outcomes.not_interested += c.not_interested || 0;
                             outcomes.no_answer += c.no_answer || 0;
                             outcomes.callback += c.callback || 0;
+                            outcomes.order_taken += c.order_taken || 0;
                             outcomes.other += c.other || 0;
                         });
                     }
@@ -165,7 +172,7 @@ export default function AdminDashboard() {
                         total,
                         completed,
                         stats: dayStats,
-                        outcomes: outcomes as { interested: number; not_interested: number; no_answer: number; callback: number; other: number },
+                        outcomes,
                     });
                 }
                 setWeekData(days);
@@ -411,6 +418,8 @@ export default function AdminDashboard() {
         });
     };
 
+
+
     const getProgressColor = (percent: number) => {
         if (percent >= 75) return 'bg-emerald-500';
         if (percent >= 50) return 'bg-amber-500';
@@ -475,6 +484,13 @@ export default function AdminDashboard() {
                         <div className="shrink-0">
                             <LanguageSwitcher />
                         </div>
+
+                        <button
+                            onClick={() => setShowAddDentistModal(true)}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition shrink-0 whitespace-nowrap hidden md:block"
+                        >
+                            + Add Dentist
+                        </button>
 
                         <button
                             onClick={() => router.push('/admin/campaigns')}
@@ -545,7 +561,7 @@ export default function AdminDashboard() {
             </div >
 
             {/* Main Content */}
-            < main className="max-w-7xl mx-auto px-4 pb-8" >
+            <main className="max-w-7xl mx-auto px-4 pb-8">
                 {/* Stats Tab */}
                 {activeTab === 'stats' && <StatsDashboard />}
 
@@ -698,18 +714,30 @@ export default function AdminDashboard() {
                                 })}
                             </div>
 
-                            {/* Day Details Modal */}
+                            {/* Enhanced Dashboard-Style Day Details Modal */}
                             {selectedDay && (
-                                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                                    <div className="bg-slate-800 rounded-2xl shadow-xl w-full max-w-lg border border-slate-700 overflow-hidden animate-in fade-in zoom-in duration-200">
-                                        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
+                                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                                    <div className="bg-slate-900 rounded-2xl shadow-2xl w-full max-w-4xl border border-slate-700 overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
+                                        {/* Modal Header */}
+                                        <div className="p-6 border-b border-slate-700 flex justify-between items-start bg-slate-800/50">
                                             <div>
-                                                <h3 className="text-xl font-bold text-white">
-                                                    {format(new Date(selectedDay.date), 'EEEE, MMMM d')}
+                                                <h3 className="text-3xl font-bold text-white mb-1">
+                                                    {format(new Date(selectedDay.date), 'EEEE, MMMM do, yyyy')}
                                                 </h3>
-                                                <p className="text-sm text-slate-400">
-                                                    {selectedDay.completed} / {selectedDay.total} calls completed
-                                                </p>
+                                                <div className="flex items-center gap-4 text-slate-400">
+                                                    <span className="flex items-center gap-1">
+                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                                        </svg>
+                                                        {selectedDay.completed} / {selectedDay.total} Calls
+                                                    </span>
+                                                    <span className="flex items-center gap-1 text-emerald-400">
+                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        {selectedDay.total > 0 ? Math.round((selectedDay.completed / selectedDay.total) * 100) : 0}% Completion
+                                                    </span>
+                                                </div>
                                             </div>
                                             <button
                                                 onClick={() => setSelectedDay(null)}
@@ -721,102 +749,146 @@ export default function AdminDashboard() {
                                             </button>
                                         </div>
 
-                                        <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                                        <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
                                             {selectedDay.total > 0 ? (
-                                                <div className="space-y-6">
-                                                    {/* Progress Bar */}
-                                                    <div className="space-y-2">
-                                                        <div className="flex justify-between text-sm">
-                                                            <span className="text-slate-400">Progress</span>
-                                                            <span className="text-emerald-400 font-medium">
-                                                                {Math.round((selectedDay.completed / selectedDay.total) * 100)}%
-                                                            </span>
+                                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                                    {/* LEFT COLUMN: Stats & Campaigns */}
+                                                    <div className="lg:col-span-2 space-y-6">
+                                                        {/* Outcome Metrics Grid */}
+                                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                                            <div className="bg-slate-800/50 rounded-xl p-4 border border-emerald-500/20">
+                                                                <div className="text-sm text-slate-400 mb-1">Interested</div>
+                                                                <div className="text-2xl font-bold text-emerald-400">{selectedDay.outcomes.interested}</div>
+                                                            </div>
+                                                            <div className="bg-slate-800/50 rounded-xl p-4 border border-amber-500/20">
+                                                                <div className="text-sm text-slate-400 mb-1">Callback</div>
+                                                                <div className="text-2xl font-bold text-amber-400">{selectedDay.outcomes.callback}</div>
+                                                            </div>
+                                                            <div className="bg-slate-800/50 rounded-xl p-4 border border-cyan-500/20">
+                                                                <div className="text-sm text-slate-400 mb-1">Order Taken</div>
+                                                                <div className="text-2xl font-bold text-cyan-400">{selectedDay.outcomes.order_taken}</div>
+                                                            </div>
+                                                            <div className="bg-slate-800/50 rounded-xl p-4 border border-red-500/20">
+                                                                <div className="text-sm text-slate-400 mb-1">Not Interested</div>
+                                                                <div className="text-2xl font-bold text-red-400">{selectedDay.outcomes.not_interested}</div>
+                                                            </div>
+                                                            <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                                                                <div className="text-sm text-slate-400 mb-1">No Answer</div>
+                                                                <div className="text-2xl font-bold text-slate-400">{selectedDay.outcomes.no_answer}</div>
+                                                            </div>
+                                                            <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                                                                <div className="text-sm text-slate-400 mb-1">Other</div>
+                                                                <div className="text-2xl font-bold text-slate-500">{selectedDay.outcomes.other}</div>
+                                                            </div>
                                                         </div>
-                                                        <div className="h-4 bg-slate-700 rounded-full overflow-hidden flex">
-                                                            <div style={{ width: `${(selectedDay.outcomes.interested / selectedDay.total) * 100}%` }} className="h-full bg-emerald-500" />
-                                                            <div style={{ width: `${(selectedDay.outcomes.not_interested / selectedDay.total) * 100}%` }} className="h-full bg-red-500" />
-                                                            <div style={{ width: `${(selectedDay.outcomes.callback / selectedDay.total) * 100}%` }} className="h-full bg-amber-500" />
-                                                            <div style={{ width: `${(selectedDay.outcomes.no_answer / selectedDay.total) * 100}%` }} className="h-full bg-slate-400" />
-                                                            <div style={{ width: `${(selectedDay.outcomes.other / selectedDay.total) * 100}%` }} className="h-full bg-slate-600" />
+
+                                                        {/* Visual Progress Bar */}
+                                                        <div>
+                                                            <div className="h-6 bg-slate-800 rounded-full overflow-hidden flex shadow-inner">
+                                                                <div style={{ width: `${(selectedDay.outcomes.interested / selectedDay.total) * 100}%` }} className="h-full bg-emerald-500" title="Interested" />
+                                                                <div style={{ width: `${(selectedDay.outcomes.not_interested / selectedDay.total) * 100}%` }} className="h-full bg-red-500" title="Not Interested" />
+                                                                <div style={{ width: `${(selectedDay.outcomes.callback / selectedDay.total) * 100}%` }} className="h-full bg-amber-500" title="Callback" />
+                                                                <div style={{ width: `${(selectedDay.outcomes.order_taken / selectedDay.total) * 100}%` }} className="h-full bg-cyan-500" title="Order Taken" />
+                                                                <div style={{ width: `${(selectedDay.outcomes.no_answer / selectedDay.total) * 100}%` }} className="h-full bg-slate-400" title="No Answer" />
+                                                                <div style={{ width: `${(selectedDay.outcomes.other / selectedDay.total) * 100}%` }} className="h-full bg-slate-600" title="Other" />
+                                                            </div>
                                                         </div>
-                                                        <div className="flex flex-wrap gap-3 text-xs text-slate-400 mt-2">
-                                                            <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Interested</div>
-                                                            <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span> Not Interested</div>
-                                                            <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Callback</div>
-                                                            <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-400"></span> No Answer</div>
-                                                            <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-600"></span> Other</div>
-                                                        </div>
+
+                                                        {/* Active Campaigns List */}
+                                                        {selectedDay.stats?.campaigns && (
+                                                            <div className="bg-slate-800/40 rounded-xl p-4 border border-slate-700">
+                                                                <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Active Campaigns</h4>
+                                                                <div className="space-y-3">
+                                                                    {Object.values(selectedDay.stats.campaigns).map((campaign) => (
+                                                                        <div key={campaign.name} className="flex flex-col gap-1">
+                                                                            <div className="flex justify-between items-center text-sm">
+                                                                                <span className="font-medium text-white truncate max-w-[200px]" title={campaign.name}>{campaign.name}</span>
+                                                                                <span className="text-slate-400 text-xs">{campaign.completed} / {campaign.total}</span>
+                                                                            </div>
+                                                                            <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                                                                                <div
+                                                                                    style={{ width: `${campaign.total > 0 ? (campaign.completed / campaign.total) * 100 : 0}%` }}
+                                                                                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-400"
+                                                                                />
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
 
-                                                    {/* Region Breakdown */}
-                                                    {selectedDay.stats?.regions && (
-                                                        <div className="space-y-3">
-                                                            <h4 className="text-sm font-medium text-slate-300 uppercase tracking-wider">Regions</h4>
-                                                            <div className="grid grid-cols-2 gap-2">
-                                                                {Object.entries(selectedDay.stats.regions).map(([region, count]) => (
-                                                                    <div key={region} className="flex justify-between items-center bg-slate-900/50 p-2 rounded border border-slate-700">
-                                                                        <span className="text-sm text-slate-300 truncate mr-2" title={region}>{region}</span>
-                                                                        <span className="text-sm font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">{count}</span>
-                                                                    </div>
-                                                                ))}
+                                                    {/* RIGHT COLUMN: Regions & Callers */}
+                                                    <div className="space-y-6">
+                                                        {/* Regions */}
+                                                        {selectedDay.stats?.regions && (
+                                                            <div className="bg-slate-800/40 rounded-xl p-4 border border-slate-700">
+                                                                <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Regions</h4>
+                                                                <div className="space-y-1.5 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
+                                                                    {Object.entries(selectedDay.stats.regions).sort((a, b) => b[1] - a[1]).map(([region, count]) => (
+                                                                        <div key={region} className="flex justify-between items-center bg-slate-900/50 p-2 rounded text-sm group hover:bg-slate-800 transition">
+                                                                            <span className="text-slate-300 truncate" title={region}>{region}</span>
+                                                                            <span className="font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded text-xs">{count}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    )}
+                                                        )}
 
-                                                    {/* Caller Breakdown */}
-                                                    {selectedDay.stats?.callers && (
-                                                        <div className="space-y-3">
-                                                            <h4 className="text-sm font-medium text-slate-300 uppercase tracking-wider">{t('per_caller')}</h4>
-                                                            <div className="space-y-3">
-                                                                {Object.entries(selectedDay.stats.callers).map(([, caller]) => (
-                                                                    <div key={caller.name} className="bg-slate-900/30 p-3 rounded-lg border border-slate-700/50">
-                                                                        <div className="flex justify-between items-center mb-2">
-                                                                            <span className="font-medium text-white">{caller.name}</span>
-                                                                            <span className="text-xs text-slate-400">{caller.completed}/{caller.total} calls</span>
+                                                        {/* Callers */}
+                                                        {selectedDay.stats?.callers && (
+                                                            <div className="bg-slate-800/40 rounded-xl p-4 border border-slate-700">
+                                                                <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">{t('per_caller')}</h4>
+                                                                <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                                                                    {Object.values(selectedDay.stats.callers).sort((a, b) => b.completed - a.completed).map((caller) => (
+                                                                        <div key={caller.name} className="bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+                                                                            <div className="flex justify-between items-center mb-2">
+                                                                                <div className="font-medium text-white">{caller.name}</div>
+                                                                                <div className="text-xs text-slate-400">{caller.completed}/{caller.total}</div>
+                                                                            </div>
+                                                                            <div className="grid grid-cols-4 gap-1 text-[10px] text-center text-slate-400">
+                                                                                <div className="bg-emerald-500/10 text-emerald-400 rounded py-0.5" title="Interested">
+                                                                                    {caller.interested} <span className="opacity-50">INT</span>
+                                                                                </div>
+                                                                                <div className="bg-amber-500/10 text-amber-400 rounded py-0.5" title="Callback">
+                                                                                    {caller.callback} <span className="opacity-50">CB</span>
+                                                                                </div>
+                                                                                <div className="bg-cyan-500/10 text-cyan-400 rounded py-0.5" title="Order">
+                                                                                    {caller.order_taken || 0} <span className="opacity-50">ORD</span>
+                                                                                </div>
+                                                                                <div className="bg-red-500/10 text-red-400 rounded py-0.5" title="Not Interested">
+                                                                                    {caller.not_interested} <span className="opacity-50">NO</span>
+                                                                                </div>
+                                                                            </div>
                                                                         </div>
-                                                                        <div className="h-2 bg-slate-700 rounded-full overflow-hidden flex">
-                                                                            <div style={{ width: `${caller.total > 0 ? (caller.interested / caller.total) * 100 : 0}%` }} className="h-full bg-emerald-500" />
-                                                                            <div style={{ width: `${caller.total > 0 ? (caller.not_interested / caller.total) * 100 : 0}%` }} className="h-full bg-red-500" />
-                                                                            <div style={{ width: `${caller.total > 0 ? (caller.callback / caller.total) * 100 : 0}%` }} className="h-full bg-amber-500" />
-                                                                            <div style={{ width: `${caller.total > 0 ? (caller.no_answer / caller.total) * 100 : 0}%` }} className="h-full bg-slate-500" />
-                                                                        </div>
-                                                                    </div>
-                                                                ))}
+                                                                    ))}
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    )}
+                                                        )}
+                                                    </div>
                                                 </div>
                                             ) : (
-                                                <div className="text-center py-8 text-slate-500">
-                                                    <p>{t('no_assignments')}</p>
-                                                    <button
-                                                        onClick={() => {
-                                                            setSelectedDay(null);
-                                                            setShowScheduleModal(true);
-                                                        }}
-                                                        className="mt-4 text-emerald-400 hover:text-emerald-300 underline"
-                                                    >
-                                                        Schedule Assignments
-                                                    </button>
+                                                <div className="text-center py-20 text-slate-500">
+                                                    <div className="text-xl font-medium mb-2">{t('no_assignments')}</div>
+                                                    <p>Create a schedule to see details for this day.</p>
                                                 </div>
                                             )}
                                         </div>
 
-                                        <div className="p-4 border-t border-slate-700 bg-slate-800/50 flex justify-end gap-2">
-                                            {selectedDay.total > 0 && (
-                                                <button
-                                                    onClick={() => {
-                                                        handleDeleteSchedule(selectedDay.date);
-                                                        setSelectedDay(null);
-                                                    }}
-                                                    className="px-4 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition"
-                                                >
-                                                    {t('delete_day')}
-                                                </button>
-                                            )}
+                                        <div className="p-4 bg-slate-800/80 border-t border-slate-700 flex justify-between">
+                                            <button
+                                                onClick={() => handleDeleteSchedule(selectedDay.date)}
+                                                className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg transition text-sm font-medium flex items-center gap-2"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                                Delete Schedule
+                                            </button>
+
                                             <button
                                                 onClick={() => setSelectedDay(null)}
-                                                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition"
+                                                className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition text-sm font-medium"
                                             >
                                                 Close
                                             </button>
@@ -824,11 +896,22 @@ export default function AdminDashboard() {
                                     </div>
                                 </div>
                             )}
-                        </div>
-                    )
-                }
 
-                {/* Users Tab */}
+                            {/* Add Dentist Modal */}
+                            <AddDentistModal
+                                isOpen={showAddDentistModal}
+                                onClose={() => setShowAddDentistModal(false)}
+                                regions={regions}
+                                onSuccess={async (msg) => {
+                                    setSuccessNotification(msg);
+                                    const res = await fetch('/api/dentists/locations');
+                                    const data = await res.json();
+                                    setRegions(data.regions || []);
+                                }}
+                            />
+                        </div>
+                    )}
+
                 {
                     activeTab === 'users' && (
                         <div className="space-y-6">

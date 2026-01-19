@@ -38,7 +38,7 @@ const OUTCOMES = [
     { value: 'NOT_INTERESTED', key: 'not_interested', emoji: '❌', color: 'red', bg: 'bg-red-500/20', border: 'border-red-500', text: 'text-red-400' },
     { value: 'NO_ANSWER', key: 'no_answer', emoji: '📵', color: 'slate', bg: 'bg-slate-600/30', border: 'border-slate-500', text: 'text-slate-400' },
     { value: 'CALLBACK', key: 'callback', emoji: '📞', color: 'amber', bg: 'bg-amber-500/20', border: 'border-amber-500', text: 'text-amber-400' },
-    { value: 'FOLLOW_UP', key: 'follow_up', emoji: '⏳', color: 'cyan', bg: 'bg-cyan-500/20', border: 'border-cyan-500', text: 'text-cyan-400' },
+    { value: 'ORDER_TAKEN', key: 'order_taken', emoji: '📦', color: 'cyan', bg: 'bg-cyan-500/20', border: 'border-cyan-500', text: 'text-cyan-400' },
 ];
 
 function getOutcomeStyle(outcome: string) {
@@ -56,6 +56,8 @@ export default function CallerDashboard() {
     const [editingCall, setEditingCall] = useState<string | null>(null);
     const [notes, setNotes] = useState<Record<string, string>>({});
     const [submitting, setSubmitting] = useState<string | null>(null);
+    const [addingPhone, setAddingPhone] = useState<string | null>(null);
+    const [newPhone, setNewPhone] = useState('');
 
     const today = format(new Date(), 'yyyy-MM-dd');
 
@@ -296,7 +298,7 @@ export default function CallerDashboard() {
                                         </div>
 
                                         {/* Phone Numbers */}
-                                        <div className="mt-3 flex flex-wrap gap-2">
+                                        <div className="mt-3 flex flex-wrap gap-2 items-center">
                                             {assignment.phones.map((phone, idx) => (
                                                 <a
                                                     key={idx}
@@ -310,6 +312,67 @@ export default function CallerDashboard() {
                                                     {phone}
                                                 </a>
                                             ))}
+
+                                            {/* Add Phone Button/Input */}
+                                            {addingPhone === assignment.id ? (
+                                                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                                    <input
+                                                        type="tel"
+                                                        value={newPhone}
+                                                        onChange={(e) => setNewPhone(e.target.value)}
+                                                        placeholder="+359..."
+                                                        className="px-2 py-1 bg-slate-900 border border-slate-600 rounded text-sm text-white w-28"
+                                                        onKeyDown={async (e) => {
+                                                            if (e.key === 'Enter' && newPhone.trim()) {
+                                                                const res = await fetch('/api/dentists', {
+                                                                    method: 'PATCH',
+                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                    body: JSON.stringify({ dentist_id: assignment.dentist_id, add_phone: newPhone }),
+                                                                });
+                                                                if (res.ok) {
+                                                                    loadData();
+                                                                    setAddingPhone(null);
+                                                                    setNewPhone('');
+                                                                }
+                                                            }
+                                                        }}
+                                                    />
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (!newPhone.trim()) return;
+                                                            const res = await fetch('/api/dentists', {
+                                                                method: 'PATCH',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ dentist_id: assignment.dentist_id, add_phone: newPhone }),
+                                                            });
+                                                            if (res.ok) {
+                                                                loadData();
+                                                                setAddingPhone(null);
+                                                                setNewPhone('');
+                                                            }
+                                                        }}
+                                                        className="p-1 text-emerald-400 hover:text-emerald-300"
+                                                    >
+                                                        ✓
+                                                    </button>
+                                                    <button
+                                                        onClick={() => { setAddingPhone(null); setNewPhone(''); }}
+                                                        className="p-1 text-slate-400 hover:text-white"
+                                                    >
+                                                        ✕
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setAddingPhone(assignment.id); }}
+                                                    className="inline-flex items-center gap-1 px-2 py-1.5 bg-slate-700/50 text-slate-400 rounded-lg text-sm hover:bg-slate-700 hover:text-white transition"
+                                                    title="Add phone number"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                                    </svg>
+                                                </button>
+                                            )}
                                         </div>
 
                                         {/* Show notes if completed */}

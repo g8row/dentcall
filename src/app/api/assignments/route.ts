@@ -20,6 +20,7 @@ interface DayStats {
     not_interested: number;
     no_answer: number;
     callback: number;
+    order_taken: number;
     other: number;
 }
 
@@ -79,7 +80,8 @@ export async function GET(request: NextRequest) {
     FROM assignments a
     JOIN dentists d ON a.dentist_id = d.id
     JOIN users u ON a.caller_id = u.id
-    WHERE ${whereClause}
+    LEFT JOIN campaigns c ON a.campaign_id = c.id
+    WHERE ${whereClause} AND (c.status IS NULL OR c.status != 'CANCELLED')
     ORDER BY a.date, d.region, d.facility_name
   `).all(...params);
 
@@ -101,6 +103,7 @@ export async function GET(request: NextRequest) {
         // If stats requested (for calendar view), calculate per-day breakdown
         let dayStats: Record<string, {
             regions: Record<string, number>;
+            campaigns: Record<string, { name: string; total: number; completed: number }>;
             callers: Record<string, {
                 total: number;
                 completed: number;
@@ -109,6 +112,7 @@ export async function GET(request: NextRequest) {
                 not_interested: number;
                 no_answer: number;
                 callback: number;
+                order_taken: number;
                 other: number;
             }>
         }> = {};
@@ -120,16 +124,20 @@ export async function GET(request: NextRequest) {
             d.region,
             u.username as caller_name,
             a.caller_id,
+            camp.name as campaign_name,
+            camp.id as campaign_id,
             COUNT(*) as total,
             SUM(CASE WHEN a.completed = 1 THEN 1 ELSE 0 END) as completed,
             SUM(CASE WHEN a.completed = 1 AND c.outcome = 'INTERESTED' THEN 1 ELSE 0 END) as interested,
             SUM(CASE WHEN a.completed = 1 AND c.outcome = 'NOT_INTERESTED' THEN 1 ELSE 0 END) as not_interested,
             SUM(CASE WHEN a.completed = 1 AND c.outcome = 'NO_ANSWER' THEN 1 ELSE 0 END) as no_answer,
-            SUM(CASE WHEN a.completed = 1 AND c.outcome IN ('CALLBACK', 'FOLLOW_UP') THEN 1 ELSE 0 END) as callback,
-            SUM(CASE WHEN a.completed = 1 AND (c.outcome IS NULL OR c.outcome NOT IN ('INTERESTED', 'NOT_INTERESTED', 'NO_ANSWER', 'CALLBACK', 'FOLLOW_UP')) THEN 1 ELSE 0 END) as other
+            SUM(CASE WHEN a.completed = 1 AND c.outcome = 'CALLBACK' THEN 1 ELSE 0 END) as callback,
+            SUM(CASE WHEN a.completed = 1 AND c.outcome = 'ORDER_TAKEN' THEN 1 ELSE 0 END) as order_taken,
+            SUM(CASE WHEN a.completed = 1 AND (c.outcome IS NULL OR c.outcome NOT IN ('INTERESTED', 'NOT_INTERESTED', 'NO_ANSWER', 'CALLBACK', 'ORDER_TAKEN')) THEN 1 ELSE 0 END) as other
         FROM assignments a
         JOIN dentists d ON a.dentist_id = d.id
         JOIN users u ON a.caller_id = u.id
+        LEFT JOIN campaigns camp ON a.campaign_id = camp.id
         LEFT JOIN (
             SELECT dentist_id, outcome
             FROM calls c1
@@ -139,19 +147,28 @@ export async function GET(request: NextRequest) {
                 WHERE c2.dentist_id = c1.dentist_id
             )
         ) c ON a.dentist_id = c.dentist_id
-        WHERE ${whereClause}
-        GROUP BY DATE(a.date), d.region, a.caller_id
+        WHERE ${whereClause} AND (camp.status IS NULL OR camp.status != 'CANCELLED')
+        GROUP BY DATE(a.date), d.region, a.caller_id, camp.id
         ORDER BY DATE(a.date), d.region
-        `).all(...params) as DayStats[];
+        `).all(...params) as (DayStats & { campaign_name: string; campaign_id: string })[];
 
             for (const stat of statsQuery) {
                 const dateKey = stat.date;
                 if (!dayStats[dateKey]) {
-                    dayStats[dateKey] = { regions: {}, callers: {} };
+                    dayStats[dateKey] = { regions: {}, campaigns: {}, callers: {} };
                 }
 
                 // Aggregate regions
                 dayStats[dateKey].regions[stat.region] = (dayStats[dateKey].regions[stat.region] || 0) + stat.total;
+
+                // Aggregate campaigns
+                if (stat.campaign_id) {
+                    if (!dayStats[dateKey].campaigns[stat.campaign_id]) {
+                        dayStats[dateKey].campaigns[stat.campaign_id] = { name: stat.campaign_name, total: 0, completed: 0 };
+                    }
+                    dayStats[dateKey].campaigns[stat.campaign_id].total += stat.total;
+                    dayStats[dateKey].campaigns[stat.campaign_id].completed += stat.completed;
+                }
 
                 // Aggregate callers
                 if (!dayStats[dateKey].callers[stat.caller_id]) {
@@ -163,6 +180,7 @@ export async function GET(request: NextRequest) {
                         not_interested: 0,
                         no_answer: 0,
                         callback: 0,
+                        order_taken: 0,
                         other: 0
                     };
                 }
@@ -173,9 +191,11 @@ export async function GET(request: NextRequest) {
                 callerStat.not_interested += stat.not_interested;
                 callerStat.no_answer += stat.no_answer;
                 callerStat.callback += stat.callback;
+                callerStat.order_taken += stat.order_taken;
                 callerStat.other += stat.other;
             }
         }
+
 
         return NextResponse.json({
             assignments: enrichedAssignments,
@@ -197,7 +217,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const { start_date, days = 7, regions, cities, append = false, caller_ids } = await request.json();
+        const { start_date, days = 7, regions, cities, append = false, caller_ids, campaign_name } = await request.json();
 
         if (!start_date) {
             return NextResponse.json(
@@ -205,6 +225,9 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             );
         }
+
+        // Calculate end date for campaign
+        const end_date = format(addDays(new Date(start_date), days - 1), 'yyyy-MM-dd');
 
         // Get callers (either specified or all active)
         let callerQuery = `SELECT id, username, daily_target FROM users WHERE role = 'CALLER' AND daily_target > 0`;
@@ -318,14 +341,31 @@ export async function POST(request: NextRequest) {
             db.prepare(deleteQuery).run(...deleteParams);
         }
 
+        // Create campaign record
+        const campaignId = generateId();
+        const campaignDisplayName = campaign_name || `Campaign ${start_date}${start_date !== end_date ? ` - ${end_date}` : ''}`;
+
+        db.prepare(`
+            INSERT INTO campaigns (id, name, start_date, end_date, target_regions, target_cities, target_callers, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
+        `).run(
+            campaignId,
+            campaignDisplayName,
+            start_date,
+            end_date,
+            regions && regions.length > 0 ? JSON.stringify(regions) : null,
+            cities && cities.length > 0 ? JSON.stringify(cities) : null,
+            caller_ids && caller_ids.length > 0 ? JSON.stringify(caller_ids) : null
+        );
+
         // Generate assignments - track used dentists to prevent duplicates
         let dentistIndex = 0;
         let assignmentCount = 0;
         const usedDentistIds = new Set<string>();
 
         const insertStmt = db.prepare(`
-      INSERT OR IGNORE INTO assignments (id, date, dentist_id, caller_id)
-      VALUES (?, ?, ?, ?)
+      INSERT OR IGNORE INTO assignments (id, date, dentist_id, caller_id, campaign_id)
+      VALUES (?, ?, ?, ?, ?)
     `);
 
         const insertMany = db.transaction(() => {
@@ -351,7 +391,8 @@ export async function POST(request: NextRequest) {
                             generateId(),
                             currentDate,
                             dentist.id,
-                            caller.id
+                            caller.id,
+                            campaignId
                         );
 
                         assignmentCount++;
@@ -376,7 +417,11 @@ export async function POST(request: NextRequest) {
             total_assignments: assignmentCount,
             available_dentists: dentists.length,
             region_breakdown: regionBreakdown,
-            callers_assigned: callers.map(c => c.username)
+            callers_assigned: callers.map(c => c.username),
+            campaign: {
+                id: campaignId,
+                name: campaignDisplayName
+            }
         });
     } catch (error) {
         console.error('Generate schedule error:', error);

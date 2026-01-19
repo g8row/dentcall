@@ -40,7 +40,7 @@ interface DashboardData {
         not_interested: number;
         no_answer: number;
         callback: number;
-        follow_up: number;
+        order_taken: number;
     };
     recent_calls: Array<{
         id: string;
@@ -104,7 +104,7 @@ export default function StatsDashboard() {
     }
 
     const totalOutcomes = data.outcomes.interested + data.outcomes.not_interested +
-        data.outcomes.no_answer + data.outcomes.callback + data.outcomes.follow_up;
+        data.outcomes.no_answer + data.outcomes.callback + data.outcomes.order_taken;
 
     const outcomePercent = (count: number) => totalOutcomes > 0 ? Math.round((count / totalOutcomes) * 100) : 0;
 
@@ -143,13 +143,15 @@ export default function StatsDashboard() {
     const interestedDeg = (data.outcomes.interested / totalOutcomes) * 360 || 0;
     const notInterestedDeg = (data.outcomes.not_interested / totalOutcomes) * 360 || 0;
     const noAnswerDeg = (data.outcomes.no_answer / totalOutcomes) * 360 || 0;
-    const callbackDeg = ((data.outcomes.callback + data.outcomes.follow_up) / totalOutcomes) * 360 || 0;
+    const callbackDeg = (data.outcomes.callback / totalOutcomes) * 360 || 0;
+    const orderTakenDeg = (data.outcomes.order_taken / totalOutcomes) * 360 || 0;
 
     const donutGradient = `conic-gradient(
         #10b981 0deg ${interestedDeg}deg,
         #ef4444 ${interestedDeg}deg ${interestedDeg + notInterestedDeg}deg,
         #64748b ${interestedDeg + notInterestedDeg}deg ${interestedDeg + notInterestedDeg + noAnswerDeg}deg,
-        #f59e0b ${interestedDeg + notInterestedDeg + noAnswerDeg}deg 360deg
+        #f59e0b ${interestedDeg + notInterestedDeg + noAnswerDeg}deg ${interestedDeg + notInterestedDeg + noAnswerDeg + callbackDeg}deg,
+        #06b6d4 ${interestedDeg + notInterestedDeg + noAnswerDeg + callbackDeg}deg 360deg
     )`;
 
     const getOutcomeColor = (outcome: string) => {
@@ -158,7 +160,7 @@ export default function StatsDashboard() {
             case 'NOT_INTERESTED': return 'bg-red-500/20 text-red-400';
             case 'NO_ANSWER': return 'bg-slate-500/20 text-slate-400';
             case 'CALLBACK':
-            case 'FOLLOW_UP': return 'bg-amber-500/20 text-amber-400';
+            case 'ORDER_TAKEN': return 'bg-cyan-500/20 text-cyan-400';
             default: return 'bg-slate-500/20 text-slate-400';
         }
     };
@@ -329,7 +331,12 @@ export default function StatsDashboard() {
                             <div className="flex items-center gap-2">
                                 <span className="w-3 h-3 bg-amber-500 rounded"></span>
                                 <span className="text-slate-300">{t('callback')}</span>
-                                <span className="text-white font-semibold">{outcomePercent(data.outcomes.callback + data.outcomes.follow_up)}%</span>
+                                <span className="text-white font-semibold">{outcomePercent(data.outcomes.callback)}%</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="w-3 h-3 bg-cyan-500 rounded"></span>
+                                <span className="text-slate-300">{t('order_taken')}</span>
+                                <span className="text-white font-semibold">{outcomePercent(data.outcomes.order_taken)}%</span>
                             </div>
                         </div>
                     </div>
@@ -371,6 +378,9 @@ export default function StatsDashboard() {
                                 <th className="px-4 py-3 text-center text-sm font-medium text-slate-300">
                                     <span className="inline-block w-3 h-3 bg-amber-500 rounded mr-1"></span>
                                 </th>
+                                <th className="px-4 py-3 text-center text-sm font-medium text-slate-300">
+                                    <span className="inline-block w-3 h-3 bg-cyan-500 rounded mr-1"></span>
+                                </th>
                                 <th
                                     className="px-4 py-3 text-center text-sm font-medium text-slate-300 cursor-pointer hover:bg-slate-700/70"
                                     onClick={() => handleRegionSort('interest')}
@@ -400,6 +410,7 @@ export default function StatsDashboard() {
                                     <td className="px-4 py-3 text-center text-red-400">{region.not_interested}</td>
                                     <td className="px-4 py-3 text-center text-slate-400">{region.no_answer}</td>
                                     <td className="px-4 py-3 text-center text-amber-400">{region.callback}</td>
+                                    <td className="px-4 py-3 text-center text-cyan-400">{(region as any).order_taken || 0}</td>
                                     <td className="px-4 py-3 text-center">
                                         <span className={`font-semibold ${region.interest_rate >= 20 ? 'text-emerald-400' : region.interest_rate >= 10 ? 'text-amber-400' : 'text-slate-400'}`}>
                                             {region.interest_rate}%
@@ -446,7 +457,7 @@ export default function StatsDashboard() {
                                                 call.outcome === 'NOT_INTERESTED' ? t('not_interested') :
                                                     call.outcome === 'NO_ANSWER' ? t('no_answer') :
                                                         call.outcome === 'CALLBACK' ? t('callback') :
-                                                            call.outcome === 'FOLLOW_UP' ? t('follow_up') : call.outcome}
+                                                            call.outcome === 'ORDER_TAKEN' ? t('order_taken') : call.outcome}
                                         </span>
                                     </td>
                                     <td className="px-4 py-3 text-slate-400 text-sm max-w-xs truncate" title={call.notes || ''}>

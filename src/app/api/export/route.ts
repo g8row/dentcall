@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
           SUM(CASE WHEN c.outcome = 'NOT_INTERESTED' THEN 1 ELSE 0 END) as "Not Interested",
           SUM(CASE WHEN c.outcome = 'NO_ANSWER' THEN 1 ELSE 0 END) as "No Answer",
           SUM(CASE WHEN c.outcome = 'CALLBACK' THEN 1 ELSE 0 END) as "Callback",
-          SUM(CASE WHEN c.outcome = 'FOLLOW_UP' THEN 1 ELSE 0 END) as "Follow Up"
+          SUM(CASE WHEN c.outcome = 'ORDER_TAKEN' THEN 1 ELSE 0 END) as "Order Taken"
         FROM users u
         LEFT JOIN calls c ON u.id = c.caller_id
         WHERE u.role = 'CALLER'

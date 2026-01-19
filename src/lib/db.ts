@@ -68,10 +68,27 @@ function getDb(): Database.Database {
         date TEXT NOT NULL,
         dentist_id TEXT NOT NULL,
         caller_id TEXT NOT NULL,
+        campaign_id TEXT,
         completed INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (dentist_id) REFERENCES dentists(id),
-        FOREIGN KEY (caller_id) REFERENCES users(id)
+        FOREIGN KEY (caller_id) REFERENCES users(id),
+        FOREIGN KEY (campaign_id) REFERENCES campaigns(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS campaigns (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        target_regions TEXT,
+        target_cities TEXT,
+        target_callers TEXT,
+        status TEXT NOT NULL DEFAULT 'ACTIVE',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        completed_at TEXT,
+        cancelled_at TEXT
       );
 
       CREATE INDEX IF NOT EXISTS idx_dentists_region ON dentists(region);
@@ -81,15 +98,27 @@ function getDb(): Database.Database {
       CREATE INDEX IF NOT EXISTS idx_calls_date ON calls(called_at);
       CREATE INDEX IF NOT EXISTS idx_assignments_date ON assignments(date);
       CREATE INDEX IF NOT EXISTS idx_assignments_caller ON assignments(caller_id);
+      CREATE INDEX IF NOT EXISTS idx_campaigns_status ON campaigns(status);
     `);
 
   // Migration: Add must_reset_password column if it doesn't exist
-  const columns = _db.pragma('table_info(users)') as Array<{ name: string }>;
-  const hasMustResetPassword = columns.some(col => col.name === 'must_reset_password');
+  const userColumns = _db.pragma('table_info(users)') as Array<{ name: string }>;
+  const hasMustResetPassword = userColumns.some(col => col.name === 'must_reset_password');
   if (!hasMustResetPassword) {
     _db.exec(`ALTER TABLE users ADD COLUMN must_reset_password INTEGER NOT NULL DEFAULT 0`);
     console.log('Migration: Added must_reset_password column to users table');
   }
+
+  // Migration: Add campaign_id column to assignments if it doesn't exist
+  const assignmentColumns = _db.pragma('table_info(assignments)') as Array<{ name: string }>;
+  const hasCampaignId = assignmentColumns.some(col => col.name === 'campaign_id');
+  if (!hasCampaignId) {
+    _db.exec(`ALTER TABLE assignments ADD COLUMN campaign_id TEXT`);
+    console.log('Migration: Added campaign_id column to assignments table');
+  }
+
+  // Create index for campaign_id (safe to run after migration ensures column exists)
+  _db.exec(`CREATE INDEX IF NOT EXISTS idx_assignments_campaign ON assignments(campaign_id)`);
 
   return _db;
 }
@@ -116,7 +145,7 @@ export type CallOutcome =
   | 'NOT_INTERESTED'
   | 'NO_ANSWER'
   | 'CALLBACK'
-  | 'FOLLOW_UP';
+  | 'ORDER_TAKEN';
 
 export interface User {
   id: string;
@@ -156,6 +185,22 @@ export interface Assignment {
   date: string;
   dentist_id: string;
   caller_id: string;
+  campaign_id: string | null;
   completed: number;
   created_at: string;
+}
+
+export interface Campaign {
+  id: string;
+  name: string;
+  description: string | null;
+  start_date: string;
+  end_date: string;
+  target_regions: string | null;
+  target_cities: string | null;
+  target_callers: string | null;
+  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  created_at: string;
+  completed_at: string | null;
+  cancelled_at: string | null;
 }

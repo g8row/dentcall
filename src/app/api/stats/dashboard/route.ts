@@ -64,7 +64,7 @@ interface OutcomeStats {
     not_interested: number;
     no_answer: number;
     callback: number;
-    follow_up: number;
+    order_taken: number;
 }
 
 // Get comprehensive dashboard statistics
@@ -86,9 +86,9 @@ export async function GET() {
                 SUM(CASE WHEN outcome = 'NOT_INTERESTED' THEN 1 ELSE 0 END) as not_interested,
                 SUM(CASE WHEN outcome = 'NO_ANSWER' THEN 1 ELSE 0 END) as no_answer,
                 SUM(CASE WHEN outcome = 'CALLBACK' THEN 1 ELSE 0 END) as callback,
-                SUM(CASE WHEN outcome = 'FOLLOW_UP' THEN 1 ELSE 0 END) as follow_up
+                SUM(CASE WHEN outcome = 'ORDER_TAKEN' THEN 1 ELSE 0 END) as order_taken
             FROM calls
-        `).get() as { interested: number; not_interested: number; no_answer: number; callback: number; follow_up: number };
+        `).get() as { interested: number; not_interested: number; no_answer: number; callback: number; order_taken: number };
 
         const interestedRate = totalCalls > 0
             ? Math.round((outcomesCounts.interested / totalCalls) * 100)
@@ -152,7 +152,8 @@ export async function GET() {
                 SUM(CASE WHEN c.outcome = 'INTERESTED' THEN 1 ELSE 0 END) as interested,
                 SUM(CASE WHEN c.outcome = 'NOT_INTERESTED' THEN 1 ELSE 0 END) as not_interested,
                 SUM(CASE WHEN c.outcome = 'NO_ANSWER' THEN 1 ELSE 0 END) as no_answer,
-                SUM(CASE WHEN c.outcome = 'CALLBACK' OR c.outcome = 'FOLLOW_UP' THEN 1 ELSE 0 END) as callback
+                SUM(CASE WHEN c.outcome = 'CALLBACK' THEN 1 ELSE 0 END) as callback,
+                SUM(CASE WHEN c.outcome = 'ORDER_TAKEN' THEN 1 ELSE 0 END) as order_taken
             FROM dentists d
             LEFT JOIN calls c ON d.id = c.dentist_id
             GROUP BY d.region
@@ -186,7 +187,8 @@ export async function GET() {
                 SUM(CASE WHEN c.outcome = 'INTERESTED' THEN 1 ELSE 0 END) as interested,
                 SUM(CASE WHEN c.outcome = 'NOT_INTERESTED' THEN 1 ELSE 0 END) as not_interested,
                 SUM(CASE WHEN c.outcome = 'NO_ANSWER' THEN 1 ELSE 0 END) as no_answer,
-                SUM(CASE WHEN c.outcome = 'CALLBACK' OR c.outcome = 'FOLLOW_UP' THEN 1 ELSE 0 END) as callback,
+                SUM(CASE WHEN c.outcome = 'CALLBACK' THEN 1 ELSE 0 END) as callback,
+                SUM(CASE WHEN c.outcome = 'ORDER_TAKEN' THEN 1 ELSE 0 END) as order_taken,
                 COUNT(DISTINCT DATE(c.called_at)) as days_active
             FROM users u
             LEFT JOIN calls c ON u.id = c.caller_id
@@ -219,8 +221,9 @@ export async function GET() {
                 SUM(CASE WHEN outcome = 'INTERESTED' THEN 1 ELSE 0 END) as interested,
                 SUM(CASE WHEN outcome = 'NOT_INTERESTED' THEN 1 ELSE 0 END) as not_interested,
                 SUM(CASE WHEN outcome = 'NO_ANSWER' THEN 1 ELSE 0 END) as no_answer,
-                SUM(CASE WHEN outcome = 'CALLBACK' OR outcome = 'FOLLOW_UP' THEN 1 ELSE 0 END) as callback,
-                SUM(CASE WHEN outcome NOT IN ('INTERESTED', 'NOT_INTERESTED', 'NO_ANSWER', 'CALLBACK', 'FOLLOW_UP') OR outcome IS NULL THEN 1 ELSE 0 END) as other
+                SUM(CASE WHEN outcome = 'CALLBACK' THEN 1 ELSE 0 END) as callback,
+                SUM(CASE WHEN outcome = 'ORDER_TAKEN' THEN 1 ELSE 0 END) as order_taken,
+                SUM(CASE WHEN outcome NOT IN ('INTERESTED', 'NOT_INTERESTED', 'NO_ANSWER', 'CALLBACK', 'ORDER_TAKEN') OR outcome IS NULL THEN 1 ELSE 0 END) as other
             FROM calls
             WHERE DATE(called_at) >= DATE('now', '-30 days')
             GROUP BY DATE(called_at)
@@ -257,7 +260,7 @@ export async function GET() {
             not_interested: outcomesCounts.not_interested || 0,
             no_answer: outcomesCounts.no_answer || 0,
             callback: outcomesCounts.callback || 0,
-            follow_up: outcomesCounts.follow_up || 0,
+            order_taken: outcomesCounts.order_taken || 0,
         };
 
         // 6. Recent Calls

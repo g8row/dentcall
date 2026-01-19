@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const validOutcomes = ['INTERESTED', 'NOT_INTERESTED', 'NO_ANSWER', 'CALLBACK', 'FOLLOW_UP'];
+        const validOutcomes = ['INTERESTED', 'NOT_INTERESTED', 'NO_ANSWER', 'CALLBACK', 'ORDER_TAKEN'];
         if (!validOutcomes.includes(outcome)) {
             return NextResponse.json(
                 { error: 'Invalid outcome' },

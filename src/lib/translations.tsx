@@ -94,9 +94,9 @@ const translations = {
         interested: 'Interested',
         not_interested: 'Not Interested',
         no_answer: 'No Answer',
-        callback: 'Callback/Follow-up',
+        callback: 'Callback',
         other: 'Other',
-        follow_up: 'Follow Up',
+        order_taken: 'Order Taken',
 
         // Campaigns
         campaign_summary: 'Campaign Summary',
@@ -314,7 +314,7 @@ const translations = {
         no_answer: 'Няма отговор',
         callback: 'Обратна връзка',
         other: 'Друго',
-        follow_up: 'Последващо',
+        order_taken: 'Взета заявка',
 
         // Campaigns
         campaign_summary: 'Кампании',

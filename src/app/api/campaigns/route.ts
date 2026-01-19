@@ -4,109 +4,165 @@ import { getSession } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-// Get all campaigns - group by continuous date ranges
-export async function GET() {
+interface CampaignRow {
+    id: string;
+    name: string;
+    description: string | null;
+    start_date: string;
+    end_date: string;
+    target_regions: string | null;
+    target_cities: string | null;
+    target_callers: string | null;
+    status: string;
+    created_at: string;
+    completed_at: string | null;
+    cancelled_at: string | null;
+}
+
+// Get all campaigns from the persistent campaigns table
+export async function GET(request: NextRequest) {
     const session = await getSession();
 
     if (!session || session.role !== 'ADMIN') {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get all assignment dates with counts
-    const assignments = db.prepare(`
-    SELECT 
-      DATE(a.date) as date,
-      COUNT(*) as total,
-      SUM(CASE WHEN a.completed = 1 THEN 1 ELSE 0 END) as completed,
-      GROUP_CONCAT(DISTINCT d.region) as regions
-    FROM assignments a
-    JOIN dentists d ON a.dentist_id = d.id
-    GROUP BY DATE(a.date)
-    ORDER BY DATE(a.date) DESC
-  `).all() as {
-        date: string;
-        total: number;
-        completed: number;
-        regions: string;
-    }[];
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status'); // Filter by status: ACTIVE, COMPLETED, CANCELLED
 
-    // Group consecutive dates into campaigns
-    const campaigns: {
-        id: string;
-        name: string;
-        start_date: string;
-        end_date: string;
-        regions: Set<string>;
-        total_assignments: number;
-        completed_assignments: number;
-        dates: string[];
-    }[] = [];
+    try {
+        // Query campaigns from table
+        let campaignsQuery = `SELECT * FROM campaigns`;
+        const params: string[] = [];
 
-    let currentCampaign: typeof campaigns[0] | null = null;
-
-    for (const a of assignments.reverse()) {
-        const prevDate = currentCampaign ? new Date(currentCampaign.end_date) : null;
-        const currDate = new Date(a.date);
-
-        // If this date is more than 2 days after the previous, start new campaign
-        const daysDiff = prevDate ? (currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24) : 999;
-
-        if (!currentCampaign || daysDiff > 2) {
-            // Start new campaign
-            if (currentCampaign) campaigns.push(currentCampaign);
-            currentCampaign = {
-                id: `campaign-${campaigns.length}`,
-                name: '',
-                start_date: a.date,
-                end_date: a.date,
-                regions: new Set(a.regions?.split(',') || []),
-                total_assignments: a.total,
-                completed_assignments: a.completed,
-                dates: [a.date],
-            };
-        } else {
-            // Extend current campaign
-            currentCampaign.end_date = a.date;
-            currentCampaign.total_assignments += a.total;
-            currentCampaign.completed_assignments += a.completed;
-            currentCampaign.dates.push(a.date);
-            a.regions?.split(',').forEach(r => currentCampaign!.regions.add(r));
+        if (status) {
+            campaignsQuery += ` WHERE status = ?`;
+            params.push(status);
         }
+
+        campaignsQuery += ` ORDER BY created_at DESC`;
+
+        const campaigns = db.prepare(campaignsQuery).all(...params) as CampaignRow[];
+
+        // Enrich each campaign with stats
+        const enrichedCampaigns = campaigns.map(campaign => {
+            // Get assignment stats - count only assignments linked to this campaign
+            const assignmentStats = db.prepare(`
+                SELECT 
+                    COUNT(*) as total_assignments,
+                    SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as completed_assignments
+                FROM assignments 
+                WHERE campaign_id = ?
+            `).get(campaign.id) as { total_assignments: number; completed_assignments: number } || { total_assignments: 0, completed_assignments: 0 };
+
+            // Get outcome stats - only count calls for dentists in this campaign's assignments
+            const outcomes = db.prepare(`
+                SELECT 
+                    c.outcome,
+                    COUNT(*) as count
+                FROM calls c
+                WHERE c.dentist_id IN (
+                    SELECT DISTINCT dentist_id FROM assignments WHERE campaign_id = ?
+                )
+                AND DATE(c.called_at) >= ? AND DATE(c.called_at) <= ?
+                GROUP BY c.outcome
+            `).all(campaign.id, campaign.start_date, campaign.end_date) as { outcome: string; count: number }[];
+
+            const outcomeStats: Record<string, number> = {};
+            outcomes.forEach(o => { outcomeStats[o.outcome] = o.count; });
+
+            // Get caller info
+            const callerIds = campaign.target_callers ? JSON.parse(campaign.target_callers) : [];
+            let callerNames: string[] = [];
+            if (callerIds.length > 0) {
+                const callers = db.prepare(`
+                    SELECT username FROM users WHERE id IN (${callerIds.map(() => '?').join(',')})
+                `).all(...callerIds) as { username: string }[];
+                callerNames = callers.map(c => c.username);
+            }
+
+            return {
+                id: campaign.id,
+                name: campaign.name,
+                description: campaign.description,
+                start_date: campaign.start_date,
+                end_date: campaign.end_date,
+                regions: campaign.target_regions ? JSON.parse(campaign.target_regions).join(', ') : 'All Regions',
+                cities: campaign.target_cities ? JSON.parse(campaign.target_cities).join(', ') : null,
+                callers: callerNames.length > 0 ? callerNames.join(', ') : 'All Callers',
+                status: campaign.status,
+                total_assignments: assignmentStats.total_assignments,
+                completed_assignments: assignmentStats.completed_assignments,
+                outcomes: outcomeStats,
+                created_at: campaign.created_at,
+                completed_at: campaign.completed_at,
+                cancelled_at: campaign.cancelled_at,
+            };
+        });
+
+        return NextResponse.json({ campaigns: enrichedCampaigns });
+    } catch (error) {
+        console.error('Get campaigns error:', error);
+        return NextResponse.json({ error: 'Failed to load campaigns' }, { status: 500 });
     }
-    if (currentCampaign) campaigns.push(currentCampaign);
-
-    // Enrich with outcome stats
-    const enrichedCampaigns = campaigns.reverse().map(c => {
-        const outcomes = db.prepare(`
-      SELECT 
-        c.outcome,
-        COUNT(*) as count
-      FROM calls c
-      WHERE DATE(c.called_at) >= ? AND DATE(c.called_at) <= ?
-      GROUP BY c.outcome
-    `).all(c.start_date, c.end_date) as { outcome: string; count: number }[];
-
-        const outcomeStats: Record<string, number> = {};
-        outcomes.forEach(o => { outcomeStats[o.outcome] = o.count; });
-
-        return {
-            id: c.id,
-            name: `Campaign ${c.start_date}${c.start_date !== c.end_date ? ` - ${c.end_date}` : ''}`,
-            start_date: c.start_date,
-            end_date: c.end_date,
-            regions: Array.from(c.regions).join(', '),
-            status: c.completed_assignments === c.total_assignments && c.total_assignments > 0 ? 'COMPLETED' : 'ACTIVE',
-            total_assignments: c.total_assignments,
-            completed_assignments: c.completed_assignments,
-            outcomes: outcomeStats,
-            dates: c.dates,
-        };
-    });
-
-    return NextResponse.json({ campaigns: enrichedCampaigns });
 }
 
-// Cancel/delete a campaign by its dates
+// Update campaign (mark complete, update name, etc.)
+export async function PATCH(request: NextRequest) {
+    const session = await getSession();
+
+    if (!session || session.role !== 'ADMIN') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    try {
+        const { id, name, status } = await request.json();
+
+        if (!id) {
+            return NextResponse.json({ error: 'Campaign id is required' }, { status: 400 });
+        }
+
+        // Check campaign exists
+        const existing = db.prepare(`SELECT * FROM campaigns WHERE id = ?`).get(id) as CampaignRow | undefined;
+        if (!existing) {
+            return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
+        }
+
+        // Build update query
+        const updates: string[] = [];
+        const params: (string | null)[] = [];
+
+        if (name !== undefined) {
+            updates.push('name = ?');
+            params.push(name);
+        }
+
+        if (status !== undefined) {
+            updates.push('status = ?');
+            params.push(status);
+
+            if (status === 'COMPLETED') {
+                updates.push('completed_at = datetime("now")');
+            } else if (status === 'CANCELLED') {
+                updates.push('cancelled_at = datetime("now")');
+            }
+        }
+
+        if (updates.length === 0) {
+            return NextResponse.json({ error: 'No updates provided' }, { status: 400 });
+        }
+
+        params.push(id);
+        db.prepare(`UPDATE campaigns SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+
+        return NextResponse.json({ success: true, message: 'Campaign updated' });
+    } catch (error) {
+        console.error('Update campaign error:', error);
+        return NextResponse.json({ error: 'Failed to update campaign' }, { status: 500 });
+    }
+}
+
+// Cancel/delete a campaign (soft delete by default, hard delete with force=true)
 export async function DELETE(request: NextRequest) {
     const session = await getSession();
 
@@ -115,25 +171,43 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const startDate = searchParams.get('start_date');
-    const endDate = searchParams.get('end_date');
+    const campaignId = searchParams.get('id');
+    const force = searchParams.get('force') === 'true';
 
-    if (!startDate || !endDate) {
-        return NextResponse.json({ error: 'start_date and end_date are required' }, { status: 400 });
+    if (!campaignId) {
+        return NextResponse.json({ error: 'Campaign id is required' }, { status: 400 });
     }
 
     try {
-        // Delete assignments in date range
-        const result = db.prepare(`
-      DELETE FROM assignments 
-      WHERE DATE(date) >= ? AND DATE(date) <= ?
-    `).run(startDate, endDate);
+        // Check campaign exists
+        const existing = db.prepare(`SELECT * FROM campaigns WHERE id = ?`).get(campaignId) as CampaignRow | undefined;
+        if (!existing) {
+            return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
+        }
 
-        return NextResponse.json({
-            success: true,
-            deleted: result.changes,
-            message: `Deleted ${result.changes} assignments from ${startDate} to ${endDate}`
-        });
+        if (force) {
+            // Hard delete: remove assignments and campaign
+            const deletedAssignments = db.prepare(`DELETE FROM assignments WHERE campaign_id = ?`).run(campaignId);
+            db.prepare(`DELETE FROM campaigns WHERE id = ?`).run(campaignId);
+
+            return NextResponse.json({
+                success: true,
+                message: `Campaign permanently deleted`,
+                deleted_assignments: deletedAssignments.changes,
+            });
+        } else {
+            // Soft delete: just mark as cancelled
+            db.prepare(`
+                UPDATE campaigns 
+                SET status = 'CANCELLED', cancelled_at = datetime('now')
+                WHERE id = ?
+            `).run(campaignId);
+
+            return NextResponse.json({
+                success: true,
+                message: `Campaign cancelled (assignments preserved)`,
+            });
+        }
     } catch (error) {
         console.error('Delete campaign error:', error);
         return NextResponse.json({ error: 'Failed to delete campaign' }, { status: 500 });
