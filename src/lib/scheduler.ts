@@ -1,4 +1,5 @@
 import { performServerBackup } from './backup';
+import { logger } from './logger';
 
 let schedulerStarted = false;
 
@@ -6,7 +7,7 @@ export function initBackupScheduler() {
     if (schedulerStarted) return;
     schedulerStarted = true;
 
-    console.log('[Scheduler] Backup scheduler started. Running daily at midnight (approx).');
+    logger.scheduler('Backup scheduler started. Running daily at midnight (approx).');
 
     // Calculate time until next midnight
     const now = new Date();
@@ -27,11 +28,12 @@ export function initBackupScheduler() {
 }
 
 function runBackupTask() {
-    console.log('[Scheduler] Starting automated backup...');
+    logger.scheduler('Starting automated backup...');
     const result = performServerBackup();
     if (result.success) {
-        console.log(`[Scheduler] Backup success: ${result.path}`);
+        logger.scheduler(`Backup success: ${result.path}`);
     } else {
-        console.error(`[Scheduler] Backup failed: ${result.error}`);
+        logger.error('Scheduler', `Backup failed: ${result.error}`);
     }
 }
+

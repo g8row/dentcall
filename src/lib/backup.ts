@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { logger } from './logger';
 
 const DB_PATH = path.join(process.cwd(), 'data', 'cold-caller.db');
 const BACKUP_DIR = path.join(process.cwd(), 'data', 'backups');
@@ -26,9 +27,10 @@ export function performServerBackup(): { success: boolean; path?: string; error?
 
         return { success: true, path: backupName };
 
-    } catch (e: any) {
-        console.error('Backup failed:', e);
-        return { success: false, error: e.message };
+    } catch (e: unknown) {
+        const error = e instanceof Error ? e : new Error(String(e));
+        logger.error('Backup', 'Backup failed', error);
+        return { success: false, error: error.message };
     }
 }
 
@@ -47,9 +49,10 @@ function cleanOldBackups() {
         const toDelete = files.slice(30);
         toDelete.forEach(f => {
             fs.unlinkSync(f.path);
-            console.log(`Rotated backup (deleted): ${f.name}`);
+            logger.debug('Backup', `Rotated backup (deleted): ${f.name}`);
         });
     } catch (e) {
-        console.error('Error rotating backups:', e);
+        logger.error('Backup', 'Error rotating backups', e);
     }
 }
+

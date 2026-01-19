@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { logger } from './logger';
 
 const DB_PATH = path.join(process.cwd(), 'data', 'cold-caller.db');
 
@@ -114,7 +115,7 @@ function getDb(): Database.Database {
   const hasMustResetPassword = userColumns.some(col => col.name === 'must_reset_password');
   if (!hasMustResetPassword) {
     _db.exec(`ALTER TABLE users ADD COLUMN must_reset_password INTEGER NOT NULL DEFAULT 0`);
-    console.log('Migration: Added must_reset_password column to users table');
+    logger.migration('Added must_reset_password column to users table');
   }
 
   // Migration: Add campaign_id column to assignments if it doesn't exist
@@ -122,7 +123,7 @@ function getDb(): Database.Database {
   const hasCampaignId = assignmentColumns.some(col => col.name === 'campaign_id');
   if (!hasCampaignId) {
     _db.exec(`ALTER TABLE assignments ADD COLUMN campaign_id TEXT`);
-    console.log('Migration: Added campaign_id column to assignments table');
+    logger.migration('Added campaign_id column to assignments table');
   }
 
   // Create index for campaign_id (safe to run after migration ensures column exists)
@@ -133,7 +134,7 @@ function getDb(): Database.Database {
   const hasPreferredCaller = dentistColumns.some(col => col.name === 'preferred_caller_id');
   if (!hasPreferredCaller) {
     _db.exec(`ALTER TABLE dentists ADD COLUMN preferred_caller_id TEXT`);
-    console.log('Migration: Added preferred_caller_id column to dentists table');
+    logger.migration('Added preferred_caller_id column to dentists table');
   }
 
   // Create index for preferred_caller_id (safe to run after migration ensures column exists)
