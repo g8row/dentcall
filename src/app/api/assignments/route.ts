@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getSession, generateId } from '@/lib/auth';
 import { addDays, format, startOfWeek, endOfWeek } from 'date-fns';
+import { logger } from '@/lib/logger';
 
 interface User {
     id: string;
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
         const callerId = searchParams.get('caller_id');
         const includeStats = searchParams.get('stats') === 'true';
 
-        console.log('[GET /api/assignments] Params:', { date, week, callerId, includeStats });
+        logger.debug('Assignments', `GET Params: date=${date}, week=${week}, callerId=${callerId}, stats=${includeStats}`);
 
         let whereClause = '1=1';
         const params: string[] = [];
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
             // Validate week string
             const weekDate = new Date(week);
             if (isNaN(weekDate.getTime())) {
-                console.error('[GET /api/assignments] Invalid week date:', week);
+                logger.warn('Assignments', `Invalid week date: ${week}`);
                 return NextResponse.json({ error: 'Invalid week date format' }, { status: 400 });
             }
 
@@ -486,7 +487,7 @@ export async function DELETE(request: NextRequest) {
     const session = await getSession();
 
     if (!session || session.role !== 'ADMIN') {
-        console.log('[DELETE /api/assignments] Unauthorized');
+        logger.debug('Assignments', 'DELETE Unauthorized');
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -496,7 +497,7 @@ export async function DELETE(request: NextRequest) {
     const endDate = searchParams.get('end_date');
     const region = searchParams.get('region');
 
-    console.log('[DELETE /api/assignments] Params:', { date, startDate, endDate, region });
+    logger.debug('Assignments', `DELETE Params: date=${date}, start=${startDate}, end=${endDate}, region=${region}`);
 
     let whereClause = '1=1';
     const params: string[] = [];
@@ -516,10 +517,10 @@ export async function DELETE(request: NextRequest) {
 
     // Check count before delete
     const beforeCount = db.prepare(`SELECT COUNT(*) as count FROM assignments WHERE ${whereClause}`).get(...params) as { count: number };
-    console.log('[DELETE /api/assignments] Found', beforeCount.count, 'to delete');
+    logger.debug('Assignments', `Found ${beforeCount.count} to delete`);
 
     const result = db.prepare(`DELETE FROM assignments WHERE ${whereClause}`).run(...params);
-    console.log('[DELETE /api/assignments] Deleted', result.changes);
+    logger.debug('Assignments', `Deleted ${result.changes}`);
 
     return NextResponse.json({
         success: true,

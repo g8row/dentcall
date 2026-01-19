@@ -2,6 +2,7 @@ import { SignJWT, jwtVerify } from 'jose';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
 import db, { User, Role } from './db';
+import { logger } from './logger';
 
 // Security: Ensure JWT_SECRET is explicitly set in production
 // Skip check during build phase (NEXT_PHASE is set during build)
@@ -100,9 +101,9 @@ export async function ensureAdminExists(): Promise<void> {
           VALUES (?, ?, ?, ?, ?, ?)
         `).run(id, 'admin', hashedPassword, 'ADMIN', 0, 1);
 
-            console.log('Created default admin user');
+            logger.info('Auth', 'Created default admin user');
         }
     } catch (error) {
-        console.error('Failed to ensure admin exists:', error);
+        logger.error('Auth', 'Failed to ensure admin exists', error);
     }
 }
