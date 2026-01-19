@@ -2,17 +2,15 @@
 
 ## 🔴 Critical / Breaking
 
-### 1. Schema Mismatch in Dentist Creation
+### ~~1. Schema Mismatch in Dentist Creation~~ ✅ FIXED
 **Location**: `src/app/api/dentists/route.ts` (POST handler)
-**Problem**: The POST handler attempts to INSERT `address` and `email` columns that don't exist in the schema defined in `src/lib/db.ts`. The schema only has: `id`, `facility_name`, `region`, `manager`, `phones`, `services`, `cities_served`, `locations`, `staff`, `staff_count`, `preferred_caller_id`, `created_at`.
-**Impact**: Creating new dentists may silently fail or error depending on SQLite behavior.
-**Fix**: Either add migrations for `address`/`email` columns, or remove them from the INSERT statement and store them in the `locations` JSON field.
+**Status**: Fixed in commit `e501d9d`
+**Solution**: Removed invalid `address`/`email` columns from INSERT; address now stored in `locations` JSON field.
 
-### 2. No Route Protection / Middleware
-**Location**: Every API route individually checks authentication
-**Problem**: Authentication is handled per-route with `getSession()` calls dispersed throughout. There's no centralized middleware protection.
-**Impact**: Risk of forgetting auth checks on new routes; inconsistent error responses; code duplication.
-**Fix**: Implement Next.js middleware (`middleware.ts`) with route matchers to centralize auth.
+### ~~2. No Route Protection / Middleware~~ ✅ FIXED
+**Location**: `src/middleware.ts` (new file)
+**Status**: Fixed in commit `e501d9d`
+**Solution**: Added Edge-compatible auth middleware that validates JWT tokens and enforces role-based access.
 
 ---
 
@@ -50,21 +48,19 @@
 **Impact**: Daily backups may not run consistently; no alerting if backup fails.
 **Fix**: Use a proper cron scheduler (node-cron) or external scheduling service; add health checks; consider external backup solutions (S3, etc.).
 
-### 8. JWT Secret in Production
-**Location**: `src/lib/auth.ts` (line 6-8)
-**Problem**: Falls back to hardcoded `'your-secret-key-change-in-production'` if `JWT_SECRET` env var not set.
-**Impact**: Security vulnerability in production if not configured.
-**Fix**: Throw error on startup if `JWT_SECRET` not set in production; document required env vars.
+### ~~8. JWT Secret in Production~~ ✅ FIXED
+**Location**: `src/lib/auth.ts`
+**Status**: Fixed in commit `e501d9d`
+**Solution**: Added production check that throws error if `JWT_SECRET` env var is not set.
 
 ---
 
 ## 🟡 Low Priority / UX Improvements
 
-### 9. No Delete Functionality for Dentists
-**Location**: Admin Dashboard, DentistManager
-**Problem**: Dentists can be added and edited, but there's no delete option.
-**Impact**: Data cleanup requires direct database manipulation.
-**Fix**: Add DELETE endpoint and UI button with confirmation modal.
+### ~~9. No Delete Functionality for Dentists~~ ✅ FIXED
+**Location**: `src/app/api/dentists/[id]/route.ts`, `src/components/DentistManager.tsx`
+**Status**: Fixed in commit `eb05652`
+**Solution**: Added DELETE endpoint with safety checks (prevents deletion if dentist has call history) and UI button with confirmation.
 
 ### 10. No Bulk Operations
 **Location**: Admin Dashboard
