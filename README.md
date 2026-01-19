@@ -76,6 +76,35 @@ docker run -p 3000:3000 -v dentcall-data:/app/data dentcall
 
 The SQLite database is stored in a Docker volume for persistence.
 
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `JWT_SECRET` | **Yes (prod)** | - | Secret key for JWT tokens. **Must be set in production.** Generate with: `openssl rand -base64 32` |
+| `CORS_ORIGIN` | No | `*` (dev) | Allowed CORS origin. Set to your frontend domain in production (e.g., `https://app.example.com`) |
+| `LOG_LEVEL` | No | `warn` (prod), `debug` (dev) | Logging level: `debug`, `info`, `warn`, `error` |
+| `INSECURE_COOKIES` | No | `false` | Set to `true` to disable secure cookies (for local HTTP development) |
+
+### Example `.env` file:
+
+```bash
+# Production
+JWT_SECRET=your-very-secure-random-string-here
+CORS_ORIGIN=https://yourdomain.com
+LOG_LEVEL=warn
+
+# Development (optional)
+INSECURE_COOKIES=true
+```
+
+## Security Features
+
+- **JWT Authentication** with secure cookie storage
+- **Rate Limiting** on login endpoint (5 attempts / 15 minutes per IP)
+- **CORS Protection** with configurable origins
+- **Role-based Access Control** (Admin / Caller roles)
+- **Centralized Auth Middleware** for all API routes
+
 ## Project Structure
 
 ```
