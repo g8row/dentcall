@@ -167,10 +167,13 @@ export async function POST(request: NextRequest) {
         const id = generateId();
         const phones = JSON.stringify([phone]);
 
+        // Store address in locations JSON since address/email columns don't exist in schema
+        const locations = address ? JSON.stringify([{ city, address }]) : JSON.stringify([{ city }]);
+
         db.prepare(`
-            INSERT INTO dentists (id, facility_name, region, cities_served, address, manager, phones, email, preferred_caller_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(id, facility_name, region, city, address || null, manager || null, phones, email || null, preferred_caller_id || null);
+            INSERT INTO dentists (id, facility_name, region, cities_served, locations, manager, phones, preferred_caller_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(id, facility_name, region, city, locations, manager || null, phones, preferred_caller_id || null);
 
         return NextResponse.json({
             success: true,

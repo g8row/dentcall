@@ -3,8 +3,20 @@ import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
 import db, { User, Role } from './db';
 
+// Security: Ensure JWT_SECRET is explicitly set in production
+// Skip check during build phase (NEXT_PHASE is set during build)
+const jwtSecretValue = process.env.JWT_SECRET;
+const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build';
+
+if (!isBuildTime && process.env.NODE_ENV === 'production' && !jwtSecretValue) {
+    throw new Error(
+        'SECURITY ERROR: JWT_SECRET environment variable must be set in production. ' +
+        'Generate a secure random string (e.g., openssl rand -base64 32) and set it as JWT_SECRET.'
+    );
+}
+
 const JWT_SECRET = new TextEncoder().encode(
-    process.env.JWT_SECRET || 'your-secret-key-change-in-production'
+    jwtSecretValue || 'dev-only-secret-not-for-production'
 );
 
 const COOKIE_NAME = 'auth-token';

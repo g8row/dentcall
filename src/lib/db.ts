@@ -96,11 +96,16 @@ function getDb(): Database.Database {
       CREATE INDEX IF NOT EXISTS idx_dentists_region ON dentists(region);
       CREATE INDEX IF NOT EXISTS idx_dentists_cities ON dentists(cities_served);
       CREATE INDEX IF NOT EXISTS idx_dentists_preferred_caller ON dentists(preferred_caller_id);
+      CREATE INDEX IF NOT EXISTS idx_dentists_region_city ON dentists(region, cities_served);
       CREATE INDEX IF NOT EXISTS idx_calls_dentist ON calls(dentist_id);
       CREATE INDEX IF NOT EXISTS idx_calls_caller ON calls(caller_id);
       CREATE INDEX IF NOT EXISTS idx_calls_date ON calls(called_at);
+      CREATE INDEX IF NOT EXISTS idx_calls_dentist_date ON calls(dentist_id, called_at);
+      CREATE INDEX IF NOT EXISTS idx_calls_outcome ON calls(outcome);
       CREATE INDEX IF NOT EXISTS idx_assignments_date ON assignments(date);
       CREATE INDEX IF NOT EXISTS idx_assignments_caller ON assignments(caller_id);
+      CREATE INDEX IF NOT EXISTS idx_assignments_date_caller ON assignments(date, caller_id);
+      CREATE INDEX IF NOT EXISTS idx_assignments_completed ON assignments(completed);
       CREATE INDEX IF NOT EXISTS idx_campaigns_status ON campaigns(status);
     `);
 
