@@ -96,3 +96,64 @@ export async function PATCH(
         return NextResponse.json({ error: 'Failed to update dentist' }, { status: 500 });
     }
 }
+
+// Delete a dentist (admin only)
+export async function DELETE(
+    request: NextRequest,
+    context: { params: Promise<{ id: string }> }
+) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await context.params;
+
+    try {
+        // Check if dentist exists
+        const dentist = db.prepare('SELECT id, facility_name FROM dentists WHERE id = ?').get(id) as { id: string; facility_name: string } | undefined;
+        if (!dentist) {
+            return NextResponse.json({ error: 'Dentist not found' }, { status: 404 });
+        }
+
+        // Check for existing call history
+        const callCount = db.prepare('SELECT COUNT(*) as count FROM calls WHERE dentist_id = ?').get(id) as { count: number };
+
+        // Check for active assignments
+        const assignmentCount = db.prepare('SELECT COUNT(*) as count FROM assignments WHERE dentist_id = ? AND completed = 0').get(id) as { count: number };
+
+        if (callCount.count > 0) {
+            return NextResponse.json({
+                error: 'Cannot delete dentist with call history. This dentist has been called before.',
+                calls: callCount.count
+            }, { status: 400 });
+        }
+
+        if (assignmentCount.count > 0) {
+            return NextResponse.json({
+                error: 'Cannot delete dentist with pending assignments.',
+                assignments: assignmentCount.count
+            }, { status: 400 });
+        }
+
+        // Safe to delete - no call history or pending assignments
+        // First delete any completed assignments (orphan cleanup)
+        db.prepare('DELETE FROM assignments WHERE dentist_id = ?').run(id);
+
+        // Then delete the dentist
+        const result = db.prepare('DELETE FROM dentists WHERE id = ?').run(id);
+
+        if (result.changes === 0) {
+            return NextResponse.json({ error: 'Failed to delete dentist' }, { status: 500 });
+        }
+
+        return NextResponse.json({
+            success: true,
+            message: `Deleted dentist: ${dentist.facility_name}`
+        });
+
+    } catch (error) {
+        console.error('Delete dentist error:', error);
+        return NextResponse.json({ error: 'Failed to delete dentist' }, { status: 500 });
+    }
+}

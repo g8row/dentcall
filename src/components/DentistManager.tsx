@@ -32,6 +32,9 @@ export default function DentistManager() {
     const [editingDentist, setEditingDentist] = useState<Dentist | null>(null);
     const [showEditModal, setShowEditModal] = useState(false);
 
+    // Delete State
+    const [deleting, setDeleting] = useState<string | null>(null);
+
     // Backup State
     const [backingUp, setBackingUp] = useState(false);
 
@@ -89,7 +92,29 @@ export default function DentistManager() {
 
     const handleEditSuccess = (msg: string) => {
         fetchData(page); // Reload data to reflect changes
-        // alert(msg); // Optional feedback
+    };
+
+    const handleDeleteClick = async (dentist: Dentist) => {
+        if (!confirm(`Are you sure you want to delete "${dentist.facility_name}"? This action cannot be undone.`)) {
+            return;
+        }
+
+        setDeleting(dentist.id);
+        try {
+            const res = await fetch(`/api/dentists/${dentist.id}`, { method: 'DELETE' });
+            const data = await res.json();
+
+            if (res.ok) {
+                fetchData(page); // Reload data
+            } else {
+                alert(data.error || 'Failed to delete dentist');
+            }
+        } catch (err) {
+            console.error('Delete error:', err);
+            alert('Failed to delete dentist');
+        } finally {
+            setDeleting(null);
+        }
     };
 
     const handleBackup = async (mode: 'client' | 'server') => {
@@ -236,8 +261,8 @@ export default function DentistManager() {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${dentist.preferred_caller_id
-                                                        ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-                                                        : 'text-slate-500'
+                                                    ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                                                    : 'text-slate-500'
                                                     }`}>
                                                     {dentist.preferred_caller_id
                                                         ? users.find(u => u.id === dentist.preferred_caller_id)?.username || 'Unknown'
@@ -245,12 +270,21 @@ export default function DentistManager() {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                <button
-                                                    onClick={() => handleEditClick(dentist)}
-                                                    className="text-indigo-400 hover:text-indigo-300 font-medium"
-                                                >
-                                                    Edit
-                                                </button>
+                                                <div className="flex items-center justify-end gap-3">
+                                                    <button
+                                                        onClick={() => handleEditClick(dentist)}
+                                                        className="text-indigo-400 hover:text-indigo-300 font-medium"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteClick(dentist)}
+                                                        disabled={deleting === dentist.id}
+                                                        className="text-red-400 hover:text-red-300 font-medium disabled:opacity-50"
+                                                    >
+                                                        {deleting === dentist.id ? 'Deleting...' : 'Delete'}
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     );
