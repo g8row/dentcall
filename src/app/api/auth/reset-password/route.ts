@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getSession, hashPassword } from '@/lib/auth';
+import { validateBody, resetPasswordSchema } from '@/lib/validation';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
     try {
@@ -8,33 +10,17 @@ export async function POST(request: NextRequest) {
 
         if (!session) {
             return NextResponse.json(
-                { error: 'Not authenticated' },
+                { success: false, error: 'Not authenticated' },
                 { status: 401 }
             );
         }
 
-        const { newPassword, confirmPassword } = await request.json();
-
-        if (!newPassword || !confirmPassword) {
-            return NextResponse.json(
-                { error: 'Both password fields are required' },
-                { status: 400 }
-            );
+        // Validate request body with Zod
+        const validation = await validateBody(request, resetPasswordSchema);
+        if (!validation.success) {
+            return validation.response;
         }
-
-        if (newPassword !== confirmPassword) {
-            return NextResponse.json(
-                { error: 'Passwords do not match' },
-                { status: 400 }
-            );
-        }
-
-        if (newPassword.length < 6) {
-            return NextResponse.json(
-                { error: 'Password must be at least 6 characters' },
-                { status: 400 }
-            );
-        }
+        const { newPassword } = validation.data;
 
         const hashedPassword = await hashPassword(newPassword);
 
@@ -44,12 +30,15 @@ export async function POST(request: NextRequest) {
             WHERE id = ?
         `).run(hashedPassword, session.user.id);
 
+        logger.info('Auth', `Password reset for user: ${session.user.username}`);
+
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('Reset password error:', error);
+        logger.error('Auth', 'Reset password error', error);
         return NextResponse.json(
-            { error: 'Internal server error' },
+            { success: false, error: 'Internal server error' },
             { status: 500 }
         );
     }
 }
+
