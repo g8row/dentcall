@@ -18,6 +18,15 @@ interface RegionStats {
     days_since_last: number | null;
     priority_score: number;
     available_dentists: number;
+    preferred_available: number;
+    preferred_breakdown?: Record<string, number>;
+}
+
+interface CityWithStats {
+    name: string;
+    count: number;
+    available: number;
+    preferred?: Record<string, number>;
 }
 
 interface Caller {
@@ -31,7 +40,7 @@ interface SchedulePlannerProps {
     onScheduleGenerated: () => void;
 }
 
-type SortKey = 'region' | 'coverage_percent' | 'priority_score' | 'available_dentists' | 'interest_rate' | 'days_since_last';
+type SortKey = 'region' | 'coverage_percent' | 'priority_score' | 'available_dentists' | 'interest_rate' | 'days_since_last' | 'preferred_available';
 
 export default function SchedulePlanner({ onClose, onScheduleGenerated }: SchedulePlannerProps) {
     const [regions, setRegions] = useState<RegionStats[]>([]);
@@ -46,7 +55,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
     const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
     const [selectedCities, setSelectedCities] = useState<string[]>([]);
     const [selectedCallers, setSelectedCallers] = useState<string[]>([]);
-    const [availableCities, setAvailableCities] = useState<{ region: string; cities: { name: string; count: number; available: number }[] }[]>([]);
+    const [availableCities, setAvailableCities] = useState<{ region: string; cities: CityWithStats[] }[]>([]);
     const [citySearch, setCitySearch] = useState('');
     const [scheduleDays, setScheduleDays] = useState(7);
     const [scheduleStartDate, setScheduleStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -61,6 +70,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
     const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
     const [showCityFilter, setShowCityFilter] = useState(false);
     const [splitHeight, setSplitHeight] = useState(300);
+    const [tooltipData, setTooltipData] = useState<{ x: number, y: number, data: Record<string, number> } | null>(null);
 
     const regionListRef = useRef<HTMLDivElement>(null);
 
@@ -120,19 +130,12 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                 return;
             }
 
-            const citiesByRegion: { region: string; cities: { name: string; count: number; available: number }[] }[] = [];
+            const citiesByRegion: { region: string; cities: CityWithStats[] }[] = [];
             for (const region of selectedRegions) {
                 const res = await fetch(`/api/dentists/locations?region=${encodeURIComponent(region)}`);
                 const data = await res.json();
                 if (data.cities) {
-                    // Filter out invalid city names like "[]" or empty strings
-                    const validCities = data.cities.filter((c: any) =>
-                        c.name &&
-                        c.name !== '[]' &&
-                        c.name.trim() !== '' &&
-                        !c.name.includes('[') // Aggressive check for array-like strings
-                    );
-
+                    const validCities = data.cities; // already filtered and sorted by API
                     if (validCities.length > 0) {
                         citiesByRegion.push({ region, cities: validCities });
                     }
@@ -249,6 +252,25 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
 
     return (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm lg:bg-black/50 flex items-center justify-center z-50 p-0 lg:p-4 overflow-hidden">
+            {/* Global Fixed Tooltip */}
+            {tooltipData && (
+                <div
+                    className="fixed bg-slate-800 border border-slate-600 p-2 rounded-lg shadow-xl z-[100] whitespace-nowrap min-w-[100px] animate-in fade-in duration-150"
+                    style={{
+                        top: tooltipData.y - 10,
+                        left: tooltipData.x,
+                    }}
+                >
+                    <div className="text-[10px] text-slate-400 mb-1 uppercase tracking-wider font-bold border-b border-slate-700 pb-1">Preferred By</div>
+                    {Object.entries(tooltipData.data).map(([name, count]) => (
+                        <div key={name} className="flex justify-between items-center text-xs text-slate-300 py-0.5 gap-3">
+                            <span>{name}</span>
+                            <span className="text-amber-400 font-bold">{count}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+
             <div className="bg-slate-800 lg:rounded-xl w-full max-w-6xl border-none lg:border border-slate-700 h-full lg:h-[90vh] flex flex-col shadow-2xl">
                 {/* Header */}
                 <div className="p-4 lg:p-6 border-b border-slate-700 flex-shrink-0 flex items-center justify-between bg-slate-800 z-10">
@@ -333,6 +355,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                                 <option value="priority_score">{t('priority_score')}</option>
                                 <option value="available_dentists">{t('available_dentists')}</option>
                                 <option value="coverage_percent">{t('coverage_percent')}</option>
+                                <option value="preferred_available">Preferred Pending ★</option>
                             </select>
                         </div>
 
@@ -397,6 +420,26 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                                                         {region.available_dentists}
                                                     </span>
                                                     <span className="opacity-50"> / {region.total_dentists} available</span>
+                                                    {region.preferred_available > 0 && (
+                                                        <div
+                                                            className="ml-2 relative group inline-block focus:outline-none"
+                                                            onMouseEnter={(e) => {
+                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                if (region.preferred_breakdown) {
+                                                                    setTooltipData({
+                                                                        x: rect.right + 10,
+                                                                        y: rect.top,
+                                                                        data: region.preferred_breakdown
+                                                                    });
+                                                                }
+                                                            }}
+                                                            onMouseLeave={() => setTooltipData(null)}
+                                                        >
+                                                            <span className="text-amber-400 font-bold flex inline-flex items-center gap-0.5 cursor-help">
+                                                                <span>★</span> {region.preferred_available}
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -489,6 +532,24 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                                                                     <span className="text-slate-200">{city.name}</span>
                                                                     <span className="text-xs text-slate-500 tabular-nums">
                                                                         {city.available} / {city.count}
+                                                                        {city.preferred && Object.keys(city.preferred).length > 0 && (
+                                                                            <div
+                                                                                className="ml-1 text-amber-400 font-bold cursor-help inline-flex items-center gap-0.5"
+                                                                                onMouseEnter={(e) => {
+                                                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                                                    if (city.preferred) {
+                                                                                        setTooltipData({
+                                                                                            x: rect.right + 10,
+                                                                                            y: rect.top,
+                                                                                            data: city.preferred
+                                                                                        });
+                                                                                    }
+                                                                                }}
+                                                                                onMouseLeave={() => setTooltipData(null)}
+                                                                            >
+                                                                                <span>★</span>{Object.values(city.preferred).reduce((a, b) => a + b, 0)}
+                                                                            </div>
+                                                                        )}
                                                                     </span>
                                                                 </div>
                                                             </label>
@@ -540,13 +601,28 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-slate-400">{t('dentists_to_call')}</span>
-                                    <span className="text-white font-bold text-lg">{selectedAvailable.toLocaleString()}</span>
+                                    <span className="text-white font-bold text-lg">
+                                        {selectedAvailable.toLocaleString()}
+                                        {/* Show breakdown of preferred in selection */}
+                                        {(() => {
+                                            const prefTotal = selectedCities.length > 0
+                                                ? // Sum from cities
+                                                availableCities.flatMap(g => g.cities).filter(c => selectedCities.includes(c.name))
+                                                    .reduce((sum, c) => sum + (c.preferred ? Object.values(c.preferred).reduce((a, b) => a + b, 0) : 0), 0)
+                                                : // Sum from regions
+                                                regions.filter(r => selectedRegions.includes(r.region))
+                                                    .reduce((sum, r) => sum + r.preferred_available, 0);
+
+                                            if (prefTotal > 0) return <span className="text-sm text-amber-400 ml-2">(★ {prefTotal})</span>;
+                                            return null;
+                                        })()}
+                                    </span>
                                 </div>
                                 <div className="h-px bg-slate-700/50 my-2"></div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-slate-400">{t('team_capacity_daily')}</span>
                                     <div className="text-right">
-                                        <span className="text-white font-medium">{selectedCallersCapacity} calls</span>
+                                        <span className="text-white font-medium">{selectedCallersCapacity} {t('calls')}</span>
                                         {selectedCallers.length > 0 && (
                                             <span className="text-xs text-cyan-400 block">({selectedCallers.length} {t('caller')})</span>
                                         )}
@@ -555,7 +631,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                                 <div className="flex justify-between items-center pt-2">
                                     <span className="text-slate-400">{t('est_time')}</span>
                                     <span className={`font-bold ${daysNeeded <= scheduleDays ? 'text-emerald-400' : 'text-amber-400'}`}>
-                                        {daysNeeded} days
+                                        {daysNeeded} {t('days')}
                                     </span>
                                 </div>
                             </div>
@@ -585,8 +661,8 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                                     <label
                                         key={caller.id}
                                         className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all ${selectedCallers.includes(caller.id)
-                                                ? 'bg-cyan-500/10 border border-cyan-500/30'
-                                                : 'bg-slate-800/50 border border-slate-700/50 hover:border-slate-600'
+                                            ? 'bg-cyan-500/10 border border-cyan-500/30'
+                                            : 'bg-slate-800/50 border border-slate-700/50 hover:border-slate-600'
                                             }`}
                                     >
                                         <input

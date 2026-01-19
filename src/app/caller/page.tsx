@@ -23,6 +23,7 @@ interface Assignment {
     phones: string[];
     cities_served: string;
     completed: number;
+    preferred_caller_id?: string;
 }
 
 interface CallLog {
@@ -280,9 +281,21 @@ export default function CallerDashboard() {
                                                     <h3 className={`font-semibold truncate ${isCompleted ? outcomeStyle?.text : 'text-white'}`}>
                                                         {assignment.facility_name}
                                                     </h3>
+                                                    {assignment.preferred_caller_id === user?.id && (
+                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 uppercase tracking-wide ml-2 shrink-0">
+                                                            Preferred
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <p className="text-sm text-slate-400 mt-1">
-                                                    {assignment.region} • {assignment.cities_served}
+                                                    {assignment.region} • {(() => {
+                                                        try {
+                                                            const parsed = JSON.parse(assignment.cities_served);
+                                                            return Array.isArray(parsed) ? parsed.join(', ') : assignment.cities_served;
+                                                        } catch {
+                                                            return assignment.cities_served;
+                                                        }
+                                                    })()}
                                                 </p>
                                                 {assignment.manager && (
                                                     <p className="text-sm text-slate-500 mt-1">

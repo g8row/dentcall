@@ -11,16 +11,21 @@ interface ConfirmModalProps {
     isDestructive?: boolean;
 }
 
+import { useTranslation } from '@/lib/translations';
+
 export default function ConfirmModal({
     isOpen,
     title,
     message,
-    confirmText = 'Confirm',
-    cancelText = 'Cancel',
+    confirmText,
+    cancelText,
     onConfirm,
     onCancel,
     isDestructive = false
 }: ConfirmModalProps) {
+    const { t } = useTranslation();
+    const finalConfirmText = confirmText || t('confirm');
+    const finalCancelText = cancelText || t('cancel');
     if (!isOpen) return null;
 
     return (
@@ -35,16 +40,16 @@ export default function ConfirmModal({
                             onClick={onCancel}
                             className="px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors font-medium"
                         >
-                            {cancelText}
+                            {finalCancelText}
                         </button>
                         <button
                             onClick={onConfirm}
                             className={`px-4 py-2 rounded-lg font-medium shadow-lg transition-transform active:scale-95 ${isDestructive
-                                    ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/20'
-                                    : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20'
+                                ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/20'
+                                : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20'
                                 }`}
                         >
-                            {confirmText}
+                            {finalConfirmText}
                         </button>
                     </div>
                 </div>

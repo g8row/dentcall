@@ -27,21 +27,38 @@ export async function GET(request: NextRequest) {
           d.phones as "Phones",
           d.cities_served as "Cities",
           d.staff_count as "Staff Count",
+          u.username as "Preferred Caller",
           (SELECT outcome FROM calls WHERE dentist_id = d.id ORDER BY called_at DESC LIMIT 1) as "Last Outcome",
           (SELECT called_at FROM calls WHERE dentist_id = d.id ORDER BY called_at DESC LIMIT 1) as "Last Called"
         FROM dentists d
+        LEFT JOIN users u ON d.preferred_caller_id = u.id
         ORDER BY d.region, d.facility_name
       `).all() as Record<string, unknown>[];
 
-      // Parse phones JSON safely
+      // Parse phones and cities JSON safely
       data = data.map(row => {
         let phones = '';
+        let cities = '';
+
         try {
           phones = JSON.parse((row.Phones as string) || '[]').join(', ');
         } catch {
           phones = row.Phones as string || '';
         }
-        return { ...row, Phones: phones };
+
+        try {
+          // Cities might be JSON ["City"] or legacy "City;City" string
+          const rawCities = row.Cities as string || '';
+          if (rawCities.trim().startsWith('[')) {
+            cities = JSON.parse(rawCities).join(', ');
+          } else {
+            cities = rawCities.split(';').map(c => c.trim()).filter(Boolean).join(', ');
+          }
+        } catch {
+          cities = row.Cities as string || '';
+        }
+
+        return { ...row, Phones: phones, Cities: cities };
       });
 
       filename = 'dentists_export.xlsx';

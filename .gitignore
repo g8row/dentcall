@@ -44,3 +44,23 @@ next-env.d.ts
 data/*.db
 data/*.db-shm
 data/*.db-wal
+*.db
+*.db-shm
+*.db-wal
+
+# Data files
+*.csv
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!next.config.js
+!src/**/*.json
+
+# Python scripts
+*.py
+scripts/*.py
+__pycache__/
+
+# Backups
+data/backups/

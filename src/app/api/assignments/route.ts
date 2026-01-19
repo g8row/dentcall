@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
         }
 
         const assignments = db.prepare(`
-    SELECT a.*, d.facility_name, d.region, d.phones, d.manager, d.cities_served,
+    SELECT a.*, d.facility_name, d.region, d.phones, d.manager, d.cities_served, d.preferred_caller_id,
            u.username as caller_name
     FROM assignments a
     JOIN dentists d ON a.dentist_id = d.id
@@ -265,7 +265,7 @@ export async function POST(request: NextRequest) {
 
         // Get dentists with smart prioritization
         const dentists = db.prepare(`
-      SELECT d.id, d.region, d.cities_served,
+      SELECT d.id, d.region, d.cities_served, d.preferred_caller_id,
              MAX(c.called_at) as last_called,
              MAX(CASE WHEN c.outcome = 'CALLBACK' THEN 1 ELSE 0 END) as has_callback,
              MAX(CASE WHEN c.outcome = 'INTERESTED' THEN 1 ELSE 0 END) as already_interested,
@@ -282,6 +282,7 @@ export async function POST(request: NextRequest) {
     `).all(...locationParams) as {
             id: string;
             region: string;
+            preferred_caller_id: string | null;
             last_called: string | null;
             has_callback: number;
             already_interested: number;
@@ -358,8 +359,29 @@ export async function POST(request: NextRequest) {
             caller_ids && caller_ids.length > 0 ? JSON.stringify(caller_ids) : null
         );
 
-        // Generate assignments - track used dentists to prevent duplicates
-        let dentistIndex = 0;
+        // Separate dentists into pools
+        // commonPool: Dentists with no preference
+        // preferredPools: Map of caller_id -> list of dentists
+        const commonPool = dentists.filter(d => !d.preferred_caller_id);
+        const preferredPools = new Map<string, typeof dentists>();
+
+        // Initialize pools for all active callers
+        callers.forEach(c => preferredPools.set(c.id, []));
+
+        // Fill preferred pools
+        dentists.filter(d => d.preferred_caller_id).forEach(d => {
+            if (preferredPools.has(d.preferred_caller_id!)) {
+                preferredPools.get(d.preferred_caller_id!)!.push(d);
+            }
+            // If preferred caller is not in the active list, this dentist is effectively skipped
+            // which is correct (reserved for someone else)
+        });
+
+        // Initialize indices
+        let commonIndex = 0;
+        const preferredIndices = new Map<string, number>();
+        callers.forEach(c => preferredIndices.set(c.id, 0));
+
         let assignmentCount = 0;
         const usedDentistIds = new Set<string>();
 
@@ -374,29 +396,54 @@ export async function POST(request: NextRequest) {
 
                 for (const caller of callers) {
                     for (let i = 0; i < caller.daily_target; i++) {
-                        // Find next unused dentist
-                        while (dentistIndex < dentists.length && usedDentistIds.has(dentists[dentistIndex].id)) {
-                            dentistIndex++;
+                        let dentistToAssign = null;
+
+                        // 1. Try to get from preferred pool
+                        const callerPool = preferredPools.get(caller.id) || [];
+                        let pIndex = preferredIndices.get(caller.id) || 0;
+
+                        // Find next unused preferred dentist
+                        // Note: dentists are already sorted by priority from the query
+                        while (pIndex < callerPool.length) {
+                            const candidate = callerPool[pIndex];
+                            if (!usedDentistIds.has(candidate.id)) {
+                                dentistToAssign = candidate;
+                                preferredIndices.set(caller.id, pIndex + 1);
+                                break;
+                            }
+                            pIndex++;
+                        }
+                        preferredIndices.set(caller.id, pIndex); // Update index if we just skipped used ones
+
+                        // 2. If no preferred, get from common pool
+                        if (!dentistToAssign) {
+                            while (commonIndex < commonPool.length) {
+                                const candidate = commonPool[commonIndex];
+                                if (!usedDentistIds.has(candidate.id)) {
+                                    dentistToAssign = candidate;
+                                    commonIndex++; // We can increment here because this is a shared linear scan
+                                    break;
+                                }
+                                commonIndex++;
+                            }
                         }
 
-                        if (dentistIndex >= dentists.length) {
-                            // No more unique dentists available
-                            return;
+                        if (!dentistToAssign) {
+                            // No more dentists available for this caller
+                            continue;
                         }
 
-                        const dentist = dentists[dentistIndex];
-                        usedDentistIds.add(dentist.id);
+                        usedDentistIds.add(dentistToAssign.id);
 
                         insertStmt.run(
                             generateId(),
                             currentDate,
-                            dentist.id,
+                            dentistToAssign.id,
                             caller.id,
                             campaignId
                         );
 
                         assignmentCount++;
-                        dentistIndex++;
                     }
                 }
             }
@@ -406,10 +453,12 @@ export async function POST(request: NextRequest) {
 
         // Get region breakdown for response
         const regionBreakdown: Record<string, number> = {};
-        for (let i = 0; i < Math.min(dentistIndex, dentists.length); i++) {
-            const region = dentists[i].region;
-            regionBreakdown[region] = (regionBreakdown[region] || 0) + 1;
-        }
+        // Use usedDentistIds to calculate breakdown
+        dentists.forEach(d => {
+            if (usedDentistIds.has(d.id)) {
+                regionBreakdown[d.region] = (regionBreakdown[d.region] || 0) + 1;
+            }
+        });
 
         return NextResponse.json({
             success: true,

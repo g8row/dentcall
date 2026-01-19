@@ -3,34 +3,35 @@ import db from '@/lib/db';
 import { getSession } from '@/lib/auth';
 
 interface RegionStats {
-    region: string;
-    total_dentists: number;
-    called_dentists: number;
-    coverage_percent: number;
-    interested: number;
-    not_interested: number;
-    no_answer: number;
-    callbacks_pending: number;
-    interest_rate: number;
-    last_called: string | null;
-    days_since_last: number | null;
-    priority_score: number;
-    available_dentists: number;
+  region: string;
+  total_dentists: number;
+  called_dentists: number;
+  coverage_percent: number;
+  interested: number;
+  not_interested: number;
+  no_answer: number;
+  callbacks_pending: number;
+  interest_rate: number;
+  last_called: string | null;
+  days_since_last: number | null;
+  priority_score: number;
+  available_dentists: number;
+  preferred_available: number;
 }
 
 // Get detailed region stats for schedule planning
 export async function GET(request: NextRequest) {
-    const session = await getSession();
+  const session = await getSession();
 
-    if (!session || session.role !== 'ADMIN') {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  if (!session || session.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
-    const { searchParams } = new URL(request.url);
-    const excludeDays = parseInt(searchParams.get('exclude_days') || '0');
+  const { searchParams } = new URL(request.url);
+  const excludeDays = parseInt(searchParams.get('exclude_days') || '0');
 
-    // Get comprehensive stats per region
-    const stats = db.prepare(`
+  // Get comprehensive stats per region
+  const stats = db.prepare(`
     WITH region_calls AS (
       SELECT 
         d.region,
@@ -69,109 +70,145 @@ export async function GET(request: NextRequest) {
          SELECT dentist_id FROM calls 
          WHERE DATE(called_at) > DATE('now', '-${excludeDays} days')
        )` : ''}
-      ) as available_dentists
+      ) as available_dentists,
+      (SELECT COUNT(*) FROM dentists d3 
+       WHERE d3.region = rs.region 
+       AND d3.preferred_caller_id IS NOT NULL
+       AND d3.id NOT IN (
+         SELECT dentist_id FROM calls 
+         WHERE outcome IN ('INTERESTED', 'NOT_INTERESTED')
+       )
+       ${excludeDays > 0 ? `AND d3.id NOT IN (
+         SELECT dentist_id FROM calls 
+         WHERE DATE(called_at) > DATE('now', '-${excludeDays} days')
+       )` : ''}
+      ) as preferred_available
     FROM region_summary rs
     ORDER BY rs.region
   `).all() as Array<{
-        region: string;
-        total_dentists: number;
-        called_dentists: number;
-        interested: number;
-        not_interested: number;
-        no_answer: number;
-        callbacks_pending: number;
-        last_called: string | null;
-        available_dentists: number;
-    }>;
+    region: string;
+    total_dentists: number;
+    called_dentists: number;
+    interested: number;
+    not_interested: number;
+    no_answer: number;
+    callbacks_pending: number;
+    last_called: string | null;
+    available_dentists: number;
+    preferred_available: number;
+  }>;
 
-    const now = new Date();
+  const now = new Date();
 
-    const enrichedStats: RegionStats[] = stats.map(s => {
-        const coverage_percent = s.total_dentists > 0
-            ? Math.round((s.called_dentists / s.total_dentists) * 100)
-            : 0;
+  const enrichedStats: RegionStats[] = stats.map(s => {
+    const coverage_percent = s.total_dentists > 0
+      ? Math.round((s.called_dentists / s.total_dentists) * 100)
+      : 0;
 
-        const total_calls = s.interested + s.not_interested + s.no_answer + s.callbacks_pending;
-        const interest_rate = total_calls > 0
-            ? Math.round((s.interested / total_calls) * 100)
-            : 0;
+    const total_calls = s.interested + s.not_interested + s.no_answer + s.callbacks_pending;
+    const interest_rate = total_calls > 0
+      ? Math.round((s.interested / total_calls) * 100)
+      : 0;
 
-        let days_since_last: number | null = null;
-        if (s.last_called) {
-            const lastDate = new Date(s.last_called);
-            days_since_last = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-        }
+    let days_since_last: number | null = null;
+    if (s.last_called) {
+      const lastDate = new Date(s.last_called);
+      days_since_last = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+    }
 
-        // Priority score formula:
-        // - High available dentists = high priority
-        // - High callbacks = high priority  
-        // - Days since last call * 2 = moderate priority
-        // - Low coverage = high priority
-        const priority_score =
-            s.available_dentists +
-            (s.callbacks_pending * 10) +
-            ((days_since_last || 365) * 2) +
-            ((100 - coverage_percent) * 2);
+    // Priority score formula:
+    // - High available dentists = high priority
+    // - High callbacks = high priority  
+    // - Days since last call * 2 = moderate priority
+    // - Low coverage = high priority
+    const priority_score =
+      s.available_dentists +
+      (s.callbacks_pending * 10) +
+      ((days_since_last || 365) * 2) +
+      ((100 - coverage_percent) * 2);
 
-        return {
-            ...s,
-            coverage_percent,
-            interest_rate,
-            days_since_last,
-            priority_score,
-        };
-    });
-
-    // Generate smart suggestions
-    const suggestions = {
-        hot_picks: enrichedStats
-            .filter(s => s.interest_rate > 20 && s.available_dentists > 10)
-            .sort((a, b) => b.interest_rate - a.interest_rate)
-            .slice(0, 3)
-            .map(s => s.region),
-
-        quick_wins: enrichedStats
-            .filter(s => s.total_dentists < 50 && s.coverage_percent < 50)
-            .sort((a, b) => a.total_dentists - b.total_dentists)
-            .slice(0, 3)
-            .map(s => s.region),
-
-        callbacks_pending: enrichedStats
-            .filter(s => s.callbacks_pending > 0)
-            .sort((a, b) => b.callbacks_pending - a.callbacks_pending)
-            .slice(0, 3)
-            .map(s => s.region),
-
-        reengage: enrichedStats
-            .filter(s => (s.days_since_last || 0) > 30 && s.available_dentists > 0)
-            .sort((a, b) => (b.days_since_last || 0) - (a.days_since_last || 0))
-            .slice(0, 3)
-            .map(s => s.region),
-
-        highest_priority: enrichedStats
-            .sort((a, b) => b.priority_score - a.priority_score)
-            .slice(0, 5)
-            .map(s => s.region),
+    return {
+      ...s,
+      coverage_percent,
+      interest_rate,
+      days_since_last,
+      priority_score,
     };
+  });
 
-    // Get caller info for workload preview
-    const callers = db.prepare(`
+  // Generate smart suggestions
+  const suggestions = {
+    hot_picks: enrichedStats
+      .filter(s => s.interest_rate > 20 && s.available_dentists > 10)
+      .sort((a, b) => b.interest_rate - a.interest_rate)
+      .slice(0, 3)
+      .map(s => s.region),
+
+    quick_wins: enrichedStats
+      .filter(s => s.total_dentists < 50 && s.coverage_percent < 50)
+      .sort((a, b) => a.total_dentists - b.total_dentists)
+      .slice(0, 3)
+      .map(s => s.region),
+
+    callbacks_pending: enrichedStats
+      .filter(s => s.callbacks_pending > 0)
+      .sort((a, b) => b.callbacks_pending - a.callbacks_pending)
+      .slice(0, 3)
+      .map(s => s.region),
+
+    reengage: enrichedStats
+      .filter(s => (s.days_since_last || 0) > 30 && s.available_dentists > 0)
+      .sort((a, b) => (b.days_since_last || 0) - (a.days_since_last || 0))
+      .slice(0, 3)
+      .map(s => s.region),
+
+    highest_priority: enrichedStats
+      .sort((a, b) => b.priority_score - a.priority_score)
+      .slice(0, 5)
+      .map(s => s.region),
+  };
+
+  // Calculate preferred breakdown per caller
+  const preferredBreakdown = db.prepare(`
+    SELECT 
+      d.region,
+      u.username,
+      COUNT(*) as count
+    FROM dentists d
+    JOIN users u ON d.preferred_caller_id = u.id
+    WHERE d.id NOT IN (
+      SELECT dentist_id FROM calls 
+      WHERE outcome IN ('INTERESTED', 'NOT_INTERESTED')
+    )
+    ${excludeDays > 0 ? `AND d.id NOT IN (
+      SELECT dentist_id FROM calls 
+      WHERE DATE(called_at) > DATE('now', '-${excludeDays} days')
+    )` : ''}
+    GROUP BY d.region, u.username
+  `).all() as { region: string; username: string; count: number }[];
+
+  const callers = db.prepare(`
     SELECT id, username, daily_target 
     FROM users 
     WHERE role = 'CALLER' AND daily_target > 0
   `).all() as { id: string; username: string; daily_target: number }[];
 
-    const totalDailyCapacity = callers.reduce((sum, c) => sum + c.daily_target, 0);
+  const totalDailyCapacity = callers.reduce((sum, c) => sum + c.daily_target, 0);
 
-    return NextResponse.json({
-        regions: enrichedStats,
-        suggestions,
-        callers,
-        totalDailyCapacity,
-        summary: {
-            total_dentists: enrichedStats.reduce((sum, s) => sum + s.total_dentists, 0),
-            total_available: enrichedStats.reduce((sum, s) => sum + s.available_dentists, 0),
-            total_callbacks: enrichedStats.reduce((sum, s) => sum + s.callbacks_pending, 0),
-        }
-    });
+  return NextResponse.json({
+    regions: enrichedStats.map(s => ({
+      ...s,
+      preferred_breakdown: preferredBreakdown
+        .filter(p => p.region === s.region)
+        .reduce((acc, curr) => ({ ...acc, [curr.username]: curr.count }), {} as Record<string, number>)
+    })),
+    suggestions,
+    callers,
+    totalDailyCapacity,
+    summary: {
+      total_dentists: enrichedStats.reduce((sum, s) => sum + s.total_dentists, 0),
+      total_available: enrichedStats.reduce((sum, s) => sum + s.available_dentists, 0),
+      total_callbacks: enrichedStats.reduce((sum, s) => sum + s.callbacks_pending, 0),
+    }
+  });
 }

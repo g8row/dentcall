@@ -254,10 +254,10 @@ export default function StatsDashboard() {
                         <table className="w-full text-left border-collapse">
                             <thead className="bg-slate-700/50 text-xs uppercase text-slate-400 sticky top-0 backdrop-blur-sm">
                                 <tr>
-                                    <th className="px-4 py-3 font-medium">Date</th>
-                                    <th className="px-4 py-3 font-medium text-center">Calls</th>
-                                    <th className="px-4 py-3 font-medium text-center">Interested</th>
-                                    <th className="px-4 py-3 font-medium text-center">Success Rate</th>
+                                    <th className="px-4 py-3 font-medium">{t('outcome_date')}</th>
+                                    <th className="px-4 py-3 font-medium text-center">{t('calls')}</th>
+                                    <th className="px-4 py-3 font-medium text-center">{t('interested')}</th>
+                                    <th className="px-4 py-3 font-medium text-center">{t('success_rate')}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-700">

@@ -4,7 +4,7 @@ import fs from 'fs';
 import { randomUUID } from 'crypto';
 
 const DB_PATH = path.join(process.cwd(), 'data', 'cold-caller.db');
-const JSON_PATH = path.join(process.cwd(), '..', 'dentists_cleaned.json');
+const JSON_PATH = path.join(process.cwd(), 'dentists_cleaned.json');
 
 // Ensure data directory exists
 const dataDir = path.dirname(DB_PATH);
@@ -38,7 +38,9 @@ db.exec(`
     locations TEXT,
     staff TEXT,
     staff_count INTEGER,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    preferred_caller_id TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (preferred_caller_id) REFERENCES users(id)
   );
 
   CREATE TABLE IF NOT EXISTS calls (
@@ -64,6 +66,7 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_dentists_region ON dentists(region);
+  CREATE INDEX IF NOT EXISTS idx_dentists_preferred_caller ON dentists(preferred_caller_id);
   CREATE INDEX IF NOT EXISTS idx_dentists_cities ON dentists(cities_served);
   CREATE INDEX IF NOT EXISTS idx_calls_dentist ON calls(dentist_id);
   CREATE INDEX IF NOT EXISTS idx_calls_caller ON calls(caller_id);
@@ -75,6 +78,18 @@ db.exec(`
 
 async function importData() {
   console.log('Reading dentist data...');
+
+  // Pre-fetch users to map preferred callers
+  const users = db.prepare('SELECT id, username FROM users').all() as { id: string; username: string }[];
+  console.log('Found users:', users.map(u => u.username).join(', '));
+
+  const callerMap = new Map<string, string>();
+  for (const u of users) {
+    const lower = u.username.toLowerCase();
+    if (lower.includes('dani')) callerMap.set('dani', u.id);
+    if (lower.includes('ico') || lower.includes('hristo') || lower.includes('ицо') || lower.includes('христо')) callerMap.set('ico', u.id);
+  }
+  console.log('Caller mapping:', Object.fromEntries(callerMap));
 
   if (!fs.existsSync(JSON_PATH)) {
     console.error(`File not found: ${JSON_PATH}`);
@@ -91,8 +106,8 @@ async function importData() {
 
   // Insert statement
   const insertStmt = db.prepare(`
-    INSERT INTO dentists (id, facility_name, region, manager, phones, services, cities_served, locations, staff, staff_count)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO dentists (id, facility_name, region, manager, phones, services, cities_served, locations, staff, staff_count, preferred_caller_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   let inserted = 0;
@@ -137,6 +152,11 @@ async function importData() {
         const staff = JSON.stringify(d.dentists || []);
         const staff_count = d.dentists ? d.dentists.length : 0;
 
+        let preferred_caller_id = null;
+        if (d.preferred_caller) {
+          preferred_caller_id = callerMap.get(d.preferred_caller) || null;
+        }
+
         insertStmt.run(
           randomUUID(),
           facility_name,
@@ -147,7 +167,8 @@ async function importData() {
           cities_served,
           locations,
           staff,
-          staff_count
+          staff_count,
+          preferred_caller_id
         );
         inserted++;
 

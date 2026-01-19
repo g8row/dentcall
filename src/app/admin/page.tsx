@@ -10,6 +10,8 @@ import LanguageSwitcher from '@/components/LanguageSwitcher';
 import AdminTutorial from '@/components/AdminTutorial';
 import ConfirmModal from '@/components/ConfirmModal';
 import AddDentistModal from '@/components/AddDentistModal';
+import SchedulingInfoModal from '@/components/SchedulingInfoModal';
+import DentistManager from '@/components/DentistManager';
 
 // ... (existing interfaces)
 
@@ -70,7 +72,9 @@ export default function AdminDashboard() {
     const [showScheduleModal, setShowScheduleModal] = useState(false);
     const [selectedDay, setSelectedDay] = useState<DayData | null>(null);
     const [showTutorial, setShowTutorial] = useState(false);
+
     const [showAddDentistModal, setShowAddDentistModal] = useState(false);
+    const [showInfoModal, setShowInfoModal] = useState(false);
 
     // Confirmation Modal State
     const [confirmModal, setConfirmModal] = useState<{
@@ -101,7 +105,7 @@ export default function AdminDashboard() {
     const [scheduleResult, setScheduleResult] = useState<{ message: string; region_breakdown?: Record<string, number> } | null>(null);
 
     const [newUser, setNewUser] = useState({ username: '', password: '', daily_target: 50 });
-    const [activeTab, setActiveTab] = useState<'calendar' | 'users' | 'data' | 'stats'>('stats');
+    const [activeTab, setActiveTab] = useState<'calendar' | 'users' | 'data' | 'stats' | 'database'>('stats');
     const [editingUser, setEditingUser] = useState<User | null>(null);
 
     // Import state
@@ -333,8 +337,8 @@ export default function AdminDashboard() {
     const handleDeleteSchedule = async (date: string) => {
         setConfirmModal({
             isOpen: true,
-            title: 'Delete Schedule',
-            message: `Delete all assignments for ${date}? This will remove all call history for this day.`,
+            title: t('delete_schedule_title'),
+            message: `${t('delete_schedule_confirm')} (${date})`,
             isDestructive: true,
             onConfirm: async () => {
                 try {
@@ -343,7 +347,7 @@ export default function AdminDashboard() {
                         loadCalendarData();
                     } else {
                         const data = await res.json();
-                        alert(`Failed to delete: ${data.error || 'Unknown error'}`);
+                        alert(`${t('error_generic')}: ${data.error || 'Unknown error'}`);
                     }
                 } catch (err) {
                     alert('Failed to delete schedule');
@@ -367,8 +371,8 @@ export default function AdminDashboard() {
 
         setConfirmModal({
             isOpen: true,
-            title: 'Import Dentists',
-            message: `Import ${file.name}? This process may take a while and will update the database.`,
+            title: t('import_title'),
+            message: t('import_confirm').replace('file', file.name),
             isDestructive: false,
             onConfirm: () => {
                 setIsImporting(true);
@@ -489,7 +493,7 @@ export default function AdminDashboard() {
                             onClick={() => setShowAddDentistModal(true)}
                             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition shrink-0 whitespace-nowrap hidden md:block"
                         >
-                            + Add Dentist
+                            {t('add_dentist_short')}
                         </button>
 
                         <button
@@ -540,6 +544,15 @@ export default function AdminDashboard() {
                         {t('calendar')}
                     </button>
                     <button
+                        onClick={() => setActiveTab('database')}
+                        className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap shrink-0 ${activeTab === 'database'
+                            ? 'bg-emerald-500 text-white'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                            }`}
+                    >
+                        {t('database') || 'Database'}
+                    </button>
+                    <button
                         onClick={() => setActiveTab('users')}
                         className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap shrink-0 ${activeTab === 'users'
                             ? 'bg-emerald-500 text-white'
@@ -564,6 +577,7 @@ export default function AdminDashboard() {
             <main className="max-w-7xl mx-auto px-4 pb-8">
                 {/* Stats Tab */}
                 {activeTab === 'stats' && <StatsDashboard />}
+                {activeTab === 'database' && <DentistManager />}
 
                 {/* Calendar Tab */}
                 {
@@ -576,13 +590,13 @@ export default function AdminDashboard() {
                                             onClick={() => setViewMode('week')}
                                             className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${viewMode === 'week' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
                                         >
-                                            Week
+                                            {t('week_view')}
                                         </button>
                                         <button
                                             onClick={() => setViewMode('month')}
                                             className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${viewMode === 'month' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
                                         >
-                                            Month
+                                            {t('month_view')}
                                         </button>
                                     </div>
 
@@ -618,12 +632,24 @@ export default function AdminDashboard() {
                                         )}
                                     </h2>
                                 </div>
-                                <button
-                                    onClick={() => setShowScheduleModal(true)}
-                                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg font-medium transition"
-                                >
-                                    {t('schedule_planner')}
-                                </button>
+
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setShowInfoModal(true)}
+                                        className="p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-lg transition"
+                                        title="Как работи Графикът?"
+                                    >
+                                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </button>
+                                    <button
+                                        onClick={() => setShowScheduleModal(true)}
+                                        className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg font-medium transition"
+                                    >
+                                        {t('schedule_planner')}
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Enhanced Calendar Grid */}
@@ -729,13 +755,13 @@ export default function AdminDashboard() {
                                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                                         </svg>
-                                                        {selectedDay.completed} / {selectedDay.total} Calls
+                                                        {selectedDay.completed} / {selectedDay.total} {t('calls_label')}
                                                     </span>
                                                     <span className="flex items-center gap-1 text-emerald-400">
                                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                         </svg>
-                                                        {selectedDay.total > 0 ? Math.round((selectedDay.completed / selectedDay.total) * 100) : 0}% Completion
+                                                        {selectedDay.total > 0 ? Math.round((selectedDay.completed / selectedDay.total) * 100) : 0}% {t('completion_label')}
                                                     </span>
                                                 </div>
                                             </div>
@@ -797,7 +823,7 @@ export default function AdminDashboard() {
                                                         {/* Active Campaigns List */}
                                                         {selectedDay.stats?.campaigns && (
                                                             <div className="bg-slate-800/40 rounded-xl p-4 border border-slate-700">
-                                                                <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Active Campaigns</h4>
+                                                                <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">{t('active_campaigns')}</h4>
                                                                 <div className="space-y-3">
                                                                     {Object.values(selectedDay.stats.campaigns).map((campaign) => (
                                                                         <div key={campaign.name} className="flex flex-col gap-1">
@@ -823,7 +849,7 @@ export default function AdminDashboard() {
                                                         {/* Regions */}
                                                         {selectedDay.stats?.regions && (
                                                             <div className="bg-slate-800/40 rounded-xl p-4 border border-slate-700">
-                                                                <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Regions</h4>
+                                                                <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">{t('regions_title')}</h4>
                                                                 <div className="space-y-1.5 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
                                                                     {Object.entries(selectedDay.stats.regions).sort((a, b) => b[1] - a[1]).map(([region, count]) => (
                                                                         <div key={region} className="flex justify-between items-center bg-slate-900/50 p-2 rounded text-sm group hover:bg-slate-800 transition">
@@ -890,27 +916,17 @@ export default function AdminDashboard() {
                                                 onClick={() => setSelectedDay(null)}
                                                 className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition text-sm font-medium"
                                             >
-                                                Close
+                                                {t('close')}
                                             </button>
                                         </div>
                                     </div>
                                 </div>
                             )}
 
-                            {/* Add Dentist Modal */}
-                            <AddDentistModal
-                                isOpen={showAddDentistModal}
-                                onClose={() => setShowAddDentistModal(false)}
-                                regions={regions}
-                                onSuccess={async (msg) => {
-                                    setSuccessNotification(msg);
-                                    const res = await fetch('/api/dentists/locations');
-                                    const data = await res.json();
-                                    setRegions(data.regions || []);
-                                }}
-                            />
+
                         </div>
-                    )}
+                    )
+                }
 
                 {
                     activeTab === 'users' && (
@@ -1015,22 +1031,22 @@ export default function AdminDashboard() {
                                     <div className="grid grid-cols-3 gap-4 text-center">
                                         <div className="bg-slate-900/50 p-3 rounded-lg">
                                             <div className="text-2xl font-bold text-white">{importStats.inserted}</div>
-                                            <div className="text-sm text-slate-400">Inserted</div>
+                                            <div className="text-sm text-slate-400">{t('inserted')}</div>
                                         </div>
                                         <div className="bg-slate-900/50 p-3 rounded-lg">
                                             <div className="text-2xl font-bold text-amber-400">{importStats.skipped}</div>
-                                            <div className="text-sm text-slate-400">Duplicate/Skipped</div>
+                                            <div className="text-sm text-slate-400">{t('skipped')}</div>
                                         </div>
                                         <div className="bg-slate-900/50 p-3 rounded-lg">
                                             <div className="text-2xl font-bold text-red-400">{importStats.errors}</div>
-                                            <div className="text-sm text-slate-400">Errors</div>
+                                            <div className="text-sm text-slate-400">{t('errors')}</div>
                                         </div>
                                     </div>
                                     <button
                                         onClick={() => setImportStats(null)}
                                         className="mt-4 text-sm text-slate-400 hover:text-white underline"
                                     >
-                                        Dismiss
+                                        {t('dismiss')}
                                     </button>
                                 </div>
                             )}
@@ -1053,10 +1069,10 @@ export default function AdminDashboard() {
                                         )}
                                     </div>
                                     <h3 className="font-semibold mb-1">
-                                        {isImporting ? 'Importing...' : t('import_dentists') || 'Import Dentists'}
+                                        {isImporting ? 'Importing...' : t('import_dentists')}
                                     </h3>
                                     <p className="text-sm text-slate-400">
-                                        Drag & drop JSON file here or click to upload
+                                        {t('drag_drop_json')}
                                     </p>
                                 </div>
 
@@ -1066,7 +1082,7 @@ export default function AdminDashboard() {
                                 >
                                     <div className="text-emerald-400 text-2xl mb-2">📋</div>
                                     <h3 className="font-semibold mb-1">{t('export_dentists')}</h3>
-                                    <p className="text-sm text-slate-400">Export all dentist records with call history</p>
+                                    <p className="text-sm text-slate-400">{t('export_dentists_desc')}</p>
                                 </button>
 
                                 <button
@@ -1075,7 +1091,7 @@ export default function AdminDashboard() {
                                 >
                                     <div className="text-cyan-400 text-2xl mb-2">📞</div>
                                     <h3 className="font-semibold mb-1">{t('export_calls')}</h3>
-                                    <p className="text-sm text-slate-400">Export all call records with outcomes</p>
+                                    <p className="text-sm text-slate-400">{t('export_calls_desc')}</p>
                                 </button>
 
                                 <button
@@ -1084,7 +1100,7 @@ export default function AdminDashboard() {
                                 >
                                     <div className="text-purple-400 text-2xl mb-2">📊</div>
                                     <h3 className="font-semibold mb-1">{t('export_stats')}</h3>
-                                    <p className="text-sm text-slate-400">Export performance statistics by caller</p>
+                                    <p className="text-sm text-slate-400">{t('export_stats_desc')}</p>
                                 </button>
                             </div>
                         </div>
@@ -1097,7 +1113,7 @@ export default function AdminDashboard() {
                 showUserModal && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                         <div className="bg-slate-800 rounded-xl p-6 w-full max-w-md border border-slate-700">
-                            <h3 className="text-lg font-semibold mb-4">Add New Caller</h3>
+                            <h3 className="text-lg font-semibold mb-4">{t('add_caller_title')}</h3>
                             <form onSubmit={handleCreateUser} className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-300 mb-1">Username</label>
@@ -1135,13 +1151,13 @@ export default function AdminDashboard() {
                                         onClick={() => setShowUserModal(false)}
                                         className="px-4 py-2 text-slate-400 hover:text-white"
                                     >
-                                        Cancel
+                                        {t('cancel')}
                                     </button>
                                     <button
                                         type="submit"
                                         className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg font-medium"
                                     >
-                                        Create
+                                        {t('create')}
                                     </button>
                                 </div>
                             </form>
@@ -1174,11 +1190,27 @@ export default function AdminDashboard() {
                 )
             }
 
+            {/* Add Dentist Modal - GLOBAL */}
+            <AddDentistModal
+                isOpen={showAddDentistModal}
+                onClose={() => setShowAddDentistModal(false)}
+                regions={regions}
+                onSuccess={async (msg) => {
+                    setSuccessNotification(msg);
+                    const res = await fetch('/api/dentists/locations');
+                    const data = await res.json();
+                    setRegions(data.regions || []);
+                }}
+            />
+
             {/* Confirmation Modal */}
             <ConfirmModal
                 {...confirmModal}
                 onCancel={closeConfirmModal}
             />
+
+            {/* Scheduling Info Modal */}
+            {showInfoModal && <SchedulingInfoModal onClose={() => setShowInfoModal(false)} />}
 
         </div >
     );

@@ -37,12 +37,16 @@ export async function GET(request: NextRequest) {
 
     // If region specified, get cities with counts
     if (region && !municipality) {
+        // Get caller mapping
+        const users = db.prepare("SELECT id, username FROM users WHERE role = 'CALLER'").all() as { id: string; username: string }[];
+        const callerMap = new Map(users.map(u => [u.id, u.username]));
+
         // Get all dentists in region
         const dentists = db.prepare(`
-      SELECT id, locations, cities_served
+      SELECT id, locations, cities_served, preferred_caller_id
       FROM dentists 
       WHERE region = ?
-    `).all(region) as { id: string; locations: string; cities_served: string }[];
+    `).all(region) as { id: string; locations: string; cities_served: string; preferred_caller_id: string | null }[];
 
         // Get unavailable dentist IDs (interested, rejected)
         const unavailable = new Set(
@@ -53,7 +57,7 @@ export async function GET(request: NextRequest) {
       `).all() as { dentist_id: string }[]).map(r => r.dentist_id)
         );
 
-        const cityStats = new Map<string, { count: number; available: number }>();
+        const cityStats = new Map<string, { count: number; available: number; preferred: Record<string, number> }>();
 
         for (const d of dentists) {
             const isAvailable = !unavailable.has(d.id);
@@ -69,25 +73,46 @@ export async function GET(request: NextRequest) {
                 }
             } catch (e) { }
 
-            // Extract from cities_served
+            // Extract from cities_served (JSON or String)
             if (d.cities_served) {
-                d.cities_served.split(';').forEach(c => {
-                    const city = c.trim();
-                    if (city) dentistCities.add(city);
-                });
+                try {
+                    // Try JSON first
+                    const parsed = JSON.parse(d.cities_served);
+                    if (Array.isArray(parsed)) {
+                        parsed.forEach(c => {
+                            if (typeof c === 'string' && c.trim()) dentistCities.add(c.trim());
+                        });
+                    }
+                } catch {
+                    // Fallback to legacy semicolon split
+                    d.cities_served.split(';').forEach(c => {
+                        const city = c.trim();
+                        if (city) dentistCities.add(city);
+                    });
+                }
             }
 
             // Increment counts
             for (const city of dentistCities) {
-                const stat = cityStats.get(city) || { count: 0, available: 0 };
+                const stat = cityStats.get(city) || { count: 0, available: 0, preferred: {} };
                 stat.count++;
-                if (isAvailable) stat.available++;
+                if (isAvailable) {
+                    stat.available++;
+
+                    if (d.preferred_caller_id) {
+                        const callerName = callerMap.get(d.preferred_caller_id);
+                        if (callerName) {
+                            stat.preferred[callerName] = (stat.preferred[callerName] || 0) + 1;
+                        }
+                    }
+                }
                 cityStats.set(city, stat);
             }
         }
 
-        const cities: CityStat[] = Array.from(cityStats.entries())
+        const cities = Array.from(cityStats.entries())
             .map(([name, stat]) => ({ name, ...stat }))
+            .filter(c => c.name.length > 1 && !c.name.includes('[')) // Extra safety filter
             .sort((a, b) => a.name.localeCompare(b.name));
 
         return NextResponse.json({ cities });

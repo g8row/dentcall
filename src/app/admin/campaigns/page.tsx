@@ -95,10 +95,10 @@ export default function CampaignsPage() {
     const handleCancelCampaign = (campaign: Campaign) => {
         setModalConfig({
             isOpen: true,
-            title: 'Cancel Campaign',
-            message: `Are you sure you want to cancel "${campaign.name}"? The campaign will be archived but assignments will be preserved.`,
+            title: t('cancel_campaign_title'),
+            message: t('cancel_campaign_msg'),
             isDestructive: false,
-            confirmText: 'Cancel Campaign',
+            confirmText: t('cancel_campaign_confirm'),
             onConfirm: () => executeCancelCampaign(campaign),
         });
     };
@@ -162,19 +162,19 @@ export default function CampaignsPage() {
     const handlePermanentDelete = (campaign: Campaign) => {
         setModalConfig({
             isOpen: true,
-            title: 'Permanently Delete Campaign',
-            message: `Are you sure you want to PERMANENTLY delete "${campaign.name}"? This will delete all ${campaign.total_assignments} assignments. This action cannot be undone!`,
+            title: t('delete_campaign_title'),
+            message: `${t('delete_campaign_msg')} ("${campaign.name}")`,
             isDestructive: true,
-            confirmText: 'Delete Forever',
+            confirmText: t('delete_forever'),
             onConfirm: () => executePermanentDelete(campaign),
         });
     };
 
     const tabs: { key: TabType; label: string }[] = [
-        { key: 'all', label: 'All' },
-        { key: 'ACTIVE', label: 'Active' },
-        { key: 'COMPLETED', label: 'Completed' },
-        { key: 'CANCELLED', label: 'Cancelled' },
+        { key: 'all', label: t('tab_all') },
+        { key: 'ACTIVE', label: t('tab_active') },
+        { key: 'COMPLETED', label: t('tab_completed') },
+        { key: 'CANCELLED', label: t('tab_cancelled') },
     ];
 
     if (loading) {
@@ -259,13 +259,13 @@ export default function CampaignsPage() {
                                                     onClick={() => handleSaveName(campaign.id)}
                                                     className="text-emerald-400 hover:text-emerald-300 text-sm"
                                                 >
-                                                    Save
+                                                    {t('save')}
                                                 </button>
                                                 <button
                                                     onClick={() => setEditingCampaign(null)}
                                                     className="text-slate-400 hover:text-white text-sm"
                                                 >
-                                                    Cancel
+                                                    {t('cancel')}
                                                 </button>
                                             </div>
                                         ) : (
@@ -294,7 +294,7 @@ export default function CampaignsPage() {
                                                 : 'bg-amber-500/20 text-amber-400'
                                             }`}>
                                             {campaign.status === 'COMPLETED' ? t('completed') :
-                                                campaign.status === 'CANCELLED' ? 'Cancelled' : t('active')}
+                                                campaign.status === 'CANCELLED' ? t('status_cancelled') : t('active')}
                                         </span>
                                         {campaign.status === 'ACTIVE' && (
                                             <>
@@ -302,13 +302,13 @@ export default function CampaignsPage() {
                                                     onClick={() => handleMarkComplete(campaign)}
                                                     className="px-3 py-1 text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 rounded hover:bg-emerald-500/30"
                                                 >
-                                                    ✓ Complete
+                                                    {t('mark_complete')}
                                                 </button>
                                                 <button
                                                     onClick={() => handleCancelCampaign(campaign)}
                                                     className="px-3 py-1 text-xs bg-red-500/20 text-red-400 border border-red-500/50 rounded hover:bg-red-500/30"
                                                 >
-                                                    Cancel
+                                                    {t('cancel')}
                                                 </button>
                                             </>
                                         )}
@@ -318,7 +318,7 @@ export default function CampaignsPage() {
                                                 className="px-3 py-1 text-xs bg-red-500/20 text-red-400 border border-red-500/50 rounded hover:bg-red-500/30"
                                                 title="Permanently delete campaign and assignments"
                                             >
-                                                🗑️ Delete
+                                                🗑️ {t('delete')}
                                             </button>
                                         )}
                                     </div>
@@ -369,7 +369,7 @@ export default function CampaignsPage() {
                                 {totalCalls > 0 && (
                                     <div className="mt-4 pt-4 border-t border-slate-700">
                                         <div className="flex justify-between text-sm">
-                                            <span className="text-slate-400">Interest Rate</span>
+                                            <span className="text-slate-400">{t('interest_rate_col')}</span>
                                             <span className={`font-medium ${interested > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
                                                 {totalCalls > 0 ? Math.round((interested / totalCalls) * 100) : 0}%
                                             </span>

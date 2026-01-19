@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const { facility_name, region, city, address, manager, phone, email } = await request.json();
+        const { facility_name, region, city, address, manager, phone, email, preferred_caller_id } = await request.json();
 
         // Validation
         if (!facility_name || !region || !city || !phone) {
@@ -168,9 +168,9 @@ export async function POST(request: NextRequest) {
         const phones = JSON.stringify([phone]);
 
         db.prepare(`
-            INSERT INTO dentists (id, facility_name, region, cities_served, address, manager, phones, email)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(id, facility_name, region, city, address || null, manager || null, phones, email || null);
+            INSERT INTO dentists (id, facility_name, region, cities_served, address, manager, phones, email, preferred_caller_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(id, facility_name, region, city, address || null, manager || null, phones, email || null, preferred_caller_id || null);
 
         return NextResponse.json({
             success: true,

@@ -49,7 +49,9 @@ function getDb(): Database.Database {
         locations TEXT,
         staff TEXT,
         staff_count INTEGER,
-        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        preferred_caller_id TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (preferred_caller_id) REFERENCES users(id)
       );
 
       CREATE TABLE IF NOT EXISTS calls (
@@ -93,6 +95,7 @@ function getDb(): Database.Database {
 
       CREATE INDEX IF NOT EXISTS idx_dentists_region ON dentists(region);
       CREATE INDEX IF NOT EXISTS idx_dentists_cities ON dentists(cities_served);
+      CREATE INDEX IF NOT EXISTS idx_dentists_preferred_caller ON dentists(preferred_caller_id);
       CREATE INDEX IF NOT EXISTS idx_calls_dentist ON calls(dentist_id);
       CREATE INDEX IF NOT EXISTS idx_calls_caller ON calls(caller_id);
       CREATE INDEX IF NOT EXISTS idx_calls_date ON calls(called_at);
@@ -120,6 +123,17 @@ function getDb(): Database.Database {
   // Create index for campaign_id (safe to run after migration ensures column exists)
   _db.exec(`CREATE INDEX IF NOT EXISTS idx_assignments_campaign ON assignments(campaign_id)`);
 
+  // Migration: Add preferred_caller_id column to dentists if it doesn't exist
+  const dentistColumns = _db.pragma('table_info(dentists)') as Array<{ name: string }>;
+  const hasPreferredCaller = dentistColumns.some(col => col.name === 'preferred_caller_id');
+  if (!hasPreferredCaller) {
+    _db.exec(`ALTER TABLE dentists ADD COLUMN preferred_caller_id TEXT`);
+    console.log('Migration: Added preferred_caller_id column to dentists table');
+  }
+
+  // Create index for preferred_caller_id (safe to run after migration ensures column exists)
+  _db.exec(`CREATE INDEX IF NOT EXISTS idx_dentists_preferred_caller ON dentists(preferred_caller_id)`);
+
   return _db;
 }
 
@@ -136,6 +150,16 @@ const db = new Proxy({} as Database.Database, {
 });
 
 export default db;
+
+// Initialize backup scheduler
+import { initBackupScheduler } from './scheduler';
+// Only run in production or distinct dev server environment to avoid hot-reload spam, 
+// but for simplicity/robustness here we just run it. 
+// A check for global var prevents re-init (handled inside initBackupScheduler).
+if (process.env.NODE_ENV !== 'test') {
+  initBackupScheduler();
+}
+
 
 // Helper types
 export type Role = 'ADMIN' | 'CALLER';
@@ -168,6 +192,7 @@ export interface Dentist {
   locations: string | null;
   staff: string | null;
   staff_count: number | null;
+  preferred_caller_id: string | null;
   created_at: string;
 }
 
