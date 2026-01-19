@@ -74,22 +74,20 @@
 **Impact**: Lost work if forms aren't saved before session expires.
 **Fix**: Implement refresh token rotation or sliding session expiration.
 
-### 12. CORS Configuration Too Permissive
-**Location**: `next.config.ts` (line 11)
-**Problem**: `Access-Control-Allow-Origin: *` in production allows any origin.
-**Impact**: API could be called from malicious sites.
-**Fix**: Restrict to actual frontend domain(s) in production.
+### ~~12. CORS Configuration Too Permissive~~ ✅ FIXED
+**Location**: `next.config.ts`
+**Status**: Fixed in commit `5784655`
+**Solution**: CORS now uses `CORS_ORIGIN` env var. Falls back to `*` only in development; production with no env var uses same-origin only.
 
 ### ~~13. No Rate Limiting~~ ✅ PARTIALLY FIXED
 **Location**: `src/lib/rate-limit.ts`, `src/app/api/auth/login/route.ts`
 **Status**: Fixed login endpoint in commit `77657c2`
 **Solution**: Added in-memory rate limiter with login protection (5 attempts/15min per IP). Other endpoints have the utility available but not yet applied.
 
-### 14. Console Logging in Production
-**Location**: Multiple API routes
-**Problem**: Extensive `console.log` statements for debugging remaining in production code.
-**Impact**: Log noise; potential info disclosure.
-**Fix**: Use proper logging library with log levels; strip debug logs in production build.
+### ~~14. Console Logging in Production~~ ✅ FIXED
+**Location**: `src/lib/logger.ts`
+**Status**: Fixed in commit `5784655`
+**Solution**: Created logger utility with log levels. Debug/info logs hidden in production (only warn/error shown). Applied to scheduler, db, backup modules.
 
 ---
 
