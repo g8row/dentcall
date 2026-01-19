@@ -283,7 +283,7 @@ export default function CallerDashboard() {
                                                     </h3>
                                                     {assignment.preferred_caller_id === user?.id && (
                                                         <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 uppercase tracking-wide ml-2 shrink-0">
-                                                            Preferred
+                                                            {t('preferred_badge')}
                                                         </span>
                                                     )}
                                                 </div>
@@ -299,7 +299,7 @@ export default function CallerDashboard() {
                                                 </p>
                                                 {assignment.manager && (
                                                     <p className="text-sm text-slate-500 mt-1">
-                                                        Manager: {assignment.manager}
+                                                        {t('manager_prefix')} {assignment.manager}
                                                     </p>
                                                 )}
                                             </div>
@@ -400,7 +400,7 @@ export default function CallerDashboard() {
                                     {(isActive && !isCompleted) || isEditing ? (
                                         <div className="px-4 pb-4 border-t border-slate-700/50 pt-4 space-y-4">
                                             {isEditing && (
-                                                <div className="text-xs text-amber-400 font-medium">✏️ Editing call outcome</div>
+                                                <div className="text-xs text-amber-400 font-medium">✏️ {t('editing_call')}</div>
                                             )}
 
                                             {/* Notes */}
@@ -458,7 +458,7 @@ export default function CallerDashboard() {
                                                     }}
                                                     className="text-sm text-slate-400 hover:text-white"
                                                 >
-                                                    Cancel
+                                                    {t('cancel')}
                                                 </button>
                                             )}
                                         </div>
@@ -475,23 +475,23 @@ export default function CallerDashboard() {
                 <div className="max-w-2xl mx-auto flex justify-around text-center">
                     <div>
                         <div className="text-xl font-bold text-emerald-400">{outcomeStats.interested}</div>
-                        <div className="text-xs text-emerald-400/70">✅ Interested</div>
+                        <div className="text-xs text-emerald-400/70">✅ {t('interested')}</div>
                     </div>
                     <div>
                         <div className="text-xl font-bold text-red-400">{outcomeStats.not_interested}</div>
-                        <div className="text-xs text-red-400/70">❌ Not Int.</div>
+                        <div className="text-xs text-red-400/70">❌ {t('not_int_short')}</div>
                     </div>
                     <div>
                         <div className="text-xl font-bold text-slate-400">{outcomeStats.no_answer}</div>
-                        <div className="text-xs text-slate-500">📵 No Ans.</div>
+                        <div className="text-xs text-slate-500">📵 {t('no_ans_short')}</div>
                     </div>
                     <div>
                         <div className="text-xl font-bold text-amber-400">{outcomeStats.callback}</div>
-                        <div className="text-xs text-amber-400/70">📞 Callback</div>
+                        <div className="text-xs text-amber-400/70">📞 {t('callback')}</div>
                     </div>
                     <div>
                         <div className="text-xl font-bold text-white">{assignments.length - completedCount}</div>
-                        <div className="text-xs text-slate-500">Remaining</div>
+                        <div className="text-xs text-slate-500">{t('remaining')}</div>
                     </div>
                 </div>
             </div >

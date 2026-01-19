@@ -123,6 +123,13 @@ const translations = {
         call_outcome: 'Call Outcome',
         notes_placeholder: 'Add notes here...',
         submit: 'Submit',
+        preferred_badge: 'Preferred',
+        manager_prefix: 'Manager:',
+        editing_call: 'Editing call outcome',
+        remaining: 'Remaining',
+        not_int_short: 'Not Int.',
+        no_ans_short: 'No Ans.',
+        add_phone_title: 'Add phone number',
 
         // Add Dentist Modal
         add_dentist_title: 'Add New Dentist',
@@ -460,6 +467,13 @@ const translations = {
         call_outcome: 'Резултат',
         notes_placeholder: 'Бележки...',
         submit: 'Запиши',
+        preferred_badge: 'Предпочитан',
+        manager_prefix: 'Управител:',
+        editing_call: 'Редактиране на резултат',
+        remaining: 'Остават',
+        not_int_short: 'Незаинт.',
+        no_ans_short: 'Без отг.',
+        add_phone_title: 'Добави телефон',
 
         // Add Dentist Modal
         add_dentist_title: 'Добави Нов Зъболекар',
