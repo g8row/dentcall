@@ -6,6 +6,8 @@ services:
     volumes:
       - dentcall-data:/app/data
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
 
