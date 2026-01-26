@@ -112,6 +112,11 @@ export default function AdminDashboard() {
     const [isImporting, setIsImporting] = useState(false);
     const [importStats, setImportStats] = useState<{ inserted: number; skipped: number; errors: number } | null>(null);
 
+    // Export calls date picker state
+    const [showExportCallsModal, setShowExportCallsModal] = useState(false);
+    const [exportCallsStartDate, setExportCallsStartDate] = useState('');
+    const [exportCallsEndDate, setExportCallsEndDate] = useState('');
+
     // Success notification state
     const [successNotification, setSuccessNotification] = useState<string | null>(null);
 
@@ -359,7 +364,26 @@ export default function AdminDashboard() {
     };
 
     const handleExport = (type: string) => {
+        if (type === 'calls') {
+            // Show date picker modal for calls export
+            setShowExportCallsModal(true);
+            return;
+        }
         window.open(`/api/export?type=${type}`, '_blank');
+    };
+
+    const handleExportCalls = () => {
+        let url = `/api/export?type=calls`;
+        if (exportCallsStartDate) {
+            url += `&startDate=${exportCallsStartDate}`;
+        }
+        if (exportCallsEndDate) {
+            url += `&endDate=${exportCallsEndDate}`;
+        }
+        window.open(url, '_blank');
+        setShowExportCallsModal(false);
+        setExportCallsStartDate('');
+        setExportCallsEndDate('');
     };
 
     const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1208,6 +1232,117 @@ export default function AdminDashboard() {
                 {...confirmModal}
                 onCancel={closeConfirmModal}
             />
+
+            {/* Export Calls Date Picker Modal */}
+            {showExportCallsModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-slate-800 rounded-2xl shadow-xl w-full max-w-md border border-slate-700 animate-in fade-in zoom-in duration-200">
+                        <div className="p-6">
+                            <h3 className="text-xl font-bold text-white mb-4">📞 Експорт на Обаждания</h3>
+                            <p className="text-slate-400 text-sm mb-4">Изберете период за експорт:</p>
+
+                            {/* Quick Options */}
+                            <div className="grid grid-cols-2 gap-2 mb-4">
+                                <button
+                                    onClick={() => {
+                                        setExportCallsStartDate(format(new Date(), 'yyyy-MM-dd'));
+                                        setExportCallsEndDate(format(new Date(), 'yyyy-MM-dd'));
+                                    }}
+                                    className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm transition"
+                                >
+                                    Днес
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const today = new Date();
+                                        const weekAgo = new Date(today);
+                                        weekAgo.setDate(today.getDate() - 7);
+                                        setExportCallsStartDate(format(weekAgo, 'yyyy-MM-dd'));
+                                        setExportCallsEndDate(format(today, 'yyyy-MM-dd'));
+                                    }}
+                                    className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm transition"
+                                >
+                                    Последни 7 дни
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const today = new Date();
+                                        const monthAgo = new Date(today);
+                                        monthAgo.setDate(today.getDate() - 30);
+                                        setExportCallsStartDate(format(monthAgo, 'yyyy-MM-dd'));
+                                        setExportCallsEndDate(format(today, 'yyyy-MM-dd'));
+                                    }}
+                                    className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm transition"
+                                >
+                                    Последни 30 дни
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setExportCallsStartDate('');
+                                        setExportCallsEndDate('');
+                                    }}
+                                    className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition"
+                                >
+                                    Всички логове
+                                </button>
+                            </div>
+
+                            {/* Custom Date Range */}
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-1">От дата</label>
+                                    <input
+                                        type="date"
+                                        value={exportCallsStartDate}
+                                        onChange={(e) => setExportCallsStartDate(e.target.value)}
+                                        className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-1">До дата</label>
+                                    <input
+                                        type="date"
+                                        value={exportCallsEndDate}
+                                        onChange={(e) => setExportCallsEndDate(e.target.value)}
+                                        className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Date Range Info */}
+                            <div className="text-sm text-slate-400 mb-4 text-center">
+                                {exportCallsStartDate || exportCallsEndDate ? (
+                                    <span>
+                                        Период: {exportCallsStartDate || '...'} — {exportCallsEndDate || '...'}
+                                    </span>
+                                ) : (
+                                    <span className="text-emerald-400">Ще се експортират всички логове</span>
+                                )}
+                            </div>
+
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowExportCallsModal(false);
+                                        setExportCallsStartDate('');
+                                        setExportCallsEndDate('');
+                                    }}
+                                    className="px-4 py-2 text-slate-400 hover:text-white transition"
+                                >
+                                    {t('cancel')}
+                                </button>
+                                <button
+                                    onClick={handleExportCalls}
+                                    className="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition font-medium"
+                                >
+                                    📥 Експорт
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Scheduling Info Modal */}
             {showInfoModal && <SchedulingInfoModal onClose={() => setShowInfoModal(false)} />}

@@ -140,6 +140,23 @@ function getDb(): Database.Database {
   // Create index for preferred_caller_id (safe to run after migration ensures column exists)
   _db.exec(`CREATE INDEX IF NOT EXISTS idx_dentists_preferred_caller ON dentists(preferred_caller_id)`);
 
+  // Migration: Add wants_implants column to dentists if it doesn't exist
+  const hasWantsImplants = dentistColumns.some(col => col.name === 'wants_implants');
+  if (!hasWantsImplants) {
+    _db.exec(`ALTER TABLE dentists ADD COLUMN wants_implants INTEGER DEFAULT 0`);
+    logger.migration('Added wants_implants column to dentists table');
+  }
+
+  // Create index for wants_implants (for filtering implant doctors)
+  _db.exec(`CREATE INDEX IF NOT EXISTS idx_dentists_wants_implants ON dentists(wants_implants)`);
+
+  // Migration: Add eik column to dentists if it doesn't exist
+  const hasEik = dentistColumns.some(col => col.name === 'eik');
+  if (!hasEik) {
+    _db.exec(`ALTER TABLE dentists ADD COLUMN eik TEXT`);
+    logger.migration('Added eik column to dentists table');
+  }
+
   return _db;
 }
 
@@ -199,6 +216,8 @@ export interface Dentist {
   staff: string | null;
   staff_count: number | null;
   preferred_caller_id: string | null;
+  wants_implants: number;
+  eik: string | null;
   created_at: string;
 }
 

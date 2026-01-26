@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
         }
 
         const assignments = db.prepare(`
-    SELECT a.*, d.facility_name, d.region, d.phones, d.manager, d.cities_served, d.preferred_caller_id,
+    SELECT a.*, d.facility_name, d.region, d.phones, d.manager, d.cities_served, d.preferred_caller_id, d.wants_implants,
            u.username as caller_name
     FROM assignments a
     JOIN dentists d ON a.dentist_id = d.id
@@ -248,13 +248,58 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Build location filter
+        // Build location filter - handle virtual regions
         let locationFilter = '';
-        const locationParams: string[] = [];
+        const locationParams: (string | number)[] = [];
+
+        // Check for virtual regions
+        let virtualUserRegion: string | null = null;
+        let isImplantsRegion = false;
+        const geoRegions: string[] = [];
 
         if (regions && regions.length > 0) {
-            locationFilter += ` AND d.region IN (${regions.map(() => '?').join(',')})`;
-            locationParams.push(...regions);
+            for (const region of regions) {
+                if (region.startsWith('★ Клиенти ')) {
+                    // Extract username from virtual region name
+                    virtualUserRegion = region.replace('★ Клиенти ', '').trim();
+                } else if (region === '🦷 Импланти') {
+                    isImplantsRegion = true;
+                } else {
+                    geoRegions.push(region);
+                }
+            }
+        }
+
+        // Build filter based on region types
+        if (virtualUserRegion) {
+            // Get the user ID from username
+            const targetUser = db.prepare(`SELECT id FROM users WHERE username = ?`).get(virtualUserRegion) as { id: string } | undefined;
+            if (targetUser) {
+                // Check if the selected callers include the preferred caller
+                // If not, this is an incompatibility - the virtual region should only be scheduled to its owner
+                if (caller_ids && caller_ids.length > 0 && !caller_ids.includes(targetUser.id)) {
+                    return NextResponse.json({
+                        success: false,
+                        error: `Несъвместимост: регионът "★ Клиенти ${virtualUserRegion}" може да се разпределя само на ${virtualUserRegion}`,
+                    }, { status: 400 });
+                }
+                locationFilter += ` AND d.preferred_caller_id = ?`;
+                locationParams.push(targetUser.id);
+            } else {
+                return NextResponse.json({
+                    success: false,
+                    error: `User "${virtualUserRegion}" not found`,
+                }, { status: 400 });
+            }
+        } else if (isImplantsRegion) {
+            locationFilter += ` AND d.wants_implants = 1`;
+            // For implants region, exclude dentists with preferred caller - they should be scheduled through their user region
+            locationFilter += ` AND (d.preferred_caller_id IS NULL)`;
+        } else if (geoRegions.length > 0) {
+            locationFilter += ` AND d.region IN (${geoRegions.map(() => '?').join(',')})`;
+            locationParams.push(...geoRegions);
+            // For geographic regions, exclude dentists with preferred caller - they should be scheduled through their user region
+            locationFilter += ` AND (d.preferred_caller_id IS NULL)`;
         }
 
         if (cities && cities.length > 0) {

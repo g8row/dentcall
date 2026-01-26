@@ -63,7 +63,35 @@ export async function GET(request: NextRequest) {
 
       filename = 'dentists_export.xlsx';
     } else if (type === 'calls') {
-      data = db.prepare(`
+      // Bulgarian translations for outcomes
+      const outcomeTranslations: Record<string, string> = {
+        'INTERESTED': 'Заинтересован',
+        'NOT_INTERESTED': 'Не се интересува',
+        'NO_ANSWER': 'Няма отговор',
+        'CALLBACK': 'Обратна връзка',
+        'ORDER_TAKEN': 'Взета заявка',
+        'IMPLANT_STATUS': 'Промяна на статус импланти',
+      };
+
+      // Date filtering
+      const startDate = searchParams.get('startDate');
+      const endDate = searchParams.get('endDate');
+
+      let dateFilter = '';
+      const dateParams: string[] = [];
+
+      if (startDate && endDate) {
+        dateFilter = `WHERE DATE(c.called_at) >= ? AND DATE(c.called_at) <= ?`;
+        dateParams.push(startDate, endDate);
+      } else if (startDate) {
+        dateFilter = `WHERE DATE(c.called_at) >= ?`;
+        dateParams.push(startDate);
+      } else if (endDate) {
+        dateFilter = `WHERE DATE(c.called_at) <= ?`;
+        dateParams.push(endDate);
+      }
+
+      const rawData = db.prepare(`
         SELECT 
           d.facility_name as "Facility",
           d.region as "Region",
@@ -74,10 +102,18 @@ export async function GET(request: NextRequest) {
         FROM calls c
         JOIN dentists d ON c.dentist_id = d.id
         JOIN users u ON c.caller_id = u.id
+        ${dateFilter}
         ORDER BY c.called_at DESC
-      `).all() as Record<string, unknown>[];
+      `).all(...dateParams) as Record<string, unknown>[];
+
+      // Translate outcomes to Bulgarian
+      data = rawData.map(row => ({
+        ...row,
+        Outcome: outcomeTranslations[row.Outcome as string] || row.Outcome,
+      }));
 
       filename = 'calls_export.xlsx';
+
     } else if (type === 'stats') {
       data = db.prepare(`
         SELECT 

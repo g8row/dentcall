@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     });
 }
 
-// Update dentist - allows callers to add phone numbers
+// Update dentist - allows callers to add phone numbers and toggle implants
 export async function PATCH(request: NextRequest) {
     const session = await getSession();
 
@@ -86,7 +86,8 @@ export async function PATCH(request: NextRequest) {
     }
 
     try {
-        const { dentist_id, add_phone } = await request.json();
+        const body = await request.json();
+        const { dentist_id, add_phone, wants_implants } = body;
 
         if (!dentist_id) {
             return NextResponse.json({ error: 'dentist_id is required' }, { status: 400 });
@@ -96,6 +97,60 @@ export async function PATCH(request: NextRequest) {
         const dentist = db.prepare(`SELECT * FROM dentists WHERE id = ?`).get(dentist_id) as Dentist | undefined;
         if (!dentist) {
             return NextResponse.json({ error: 'Dentist not found' }, { status: 404 });
+        }
+
+        // Handle wants_implants toggle
+        if (typeof wants_implants === 'boolean' || typeof wants_implants === 'number') {
+            const value = wants_implants ? 1 : 0;
+            // Format date as YYYY-MM-DD HH:mm:ss for SQLite consistency
+            const now = new Date();
+            const updated = now.toISOString().replace('T', ' ').split('.')[0];
+
+            // Update dentist
+            db.prepare(`UPDATE dentists SET wants_implants = ? WHERE id = ?`).run(value, dentist_id);
+
+            // Log change to call history
+            // We use a special outcome "SYSTEM" or just a note
+            // But user wants it exported, so let's log it as a call with outcome "IMPLANTS_CHANGED"?
+            // Or better, reuse existing structure. Let's create a call entry with a specific note.
+            // Actually, "wants_implants" is a persistent state.
+            // Let's use a custom outcome or just a note if the user just wants the regular log.
+            // "create a seperate entry in the call log that gets exported"
+            // Let's use outcome "OTHER" or similar, but the export handles translations.
+            // Let's assume we can add a new outcome or reuse one. 
+            // Since there isn't a "SYSTEM" outcome in the types usually, let's check outcomes.
+            // The export translation map has: INTERESTED, NOT_INTERESTED, NO_ANSWER, CALLBACK, ORDER_TAKEN.
+            // Let's insert it as "INTERESTED" if enabled? No that messes up stats.
+            // Let's add a note to a "NO_ANSWER" or just insert with a custom outcome and handle export?
+            // The best way is to add a new outcome type "IMPLANT_CHANGE" and handle it in export.
+
+            // For now, let's insert it with outcome 'IMPLANT_CHANGE' and make sure export handles it.
+            const callId = generateId();
+            const note = value ? 'Enabled implants' : 'Disabled implants';
+            const logOutcome = value ? 'IMPLANT_INTERESTED' : 'IMPLANT_NOT_INTERESTED'; // specialized outcomes?
+
+            // Let's stick to a generic outcome but specific note so export is clear.
+            // Wait, export translates precise strings.
+            // If I add a new outcome 'IMPLANT_STATUS', I need to update export.
+            // Let's use 'IMPLANT_STATUS' as outcome.
+
+            db.prepare(`
+                INSERT INTO calls (id, dentist_id, caller_id, outcome, notes, called_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            `).run(
+                callId,
+                dentist_id,
+                session.user.id,
+                'IMPLANT_STATUS',
+                note,
+                updated
+            );
+
+            return NextResponse.json({
+                success: true,
+                message: value ? 'Implant flag enabled' : 'Implant flag disabled',
+                wants_implants: value,
+            });
         }
 
         // Handle adding a phone number
@@ -141,7 +196,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const { facility_name, region, city, address, manager, phone, email, preferred_caller_id } = await request.json();
+        const { facility_name, region, city, address, manager, phone, email, eik, preferred_caller_id } = await request.json();
 
         // Validation
         if (!facility_name || !region || !city || !phone) {
@@ -171,15 +226,15 @@ export async function POST(request: NextRequest) {
         const locations = address ? JSON.stringify([{ city, address }]) : JSON.stringify([{ city }]);
 
         db.prepare(`
-            INSERT INTO dentists (id, facility_name, region, cities_served, locations, manager, phones, preferred_caller_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(id, facility_name, region, city, locations, manager || null, phones, preferred_caller_id || null);
+            INSERT INTO dentists (id, facility_name, region, cities_served, locations, manager, phones, eik, preferred_caller_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(id, facility_name, region, city, locations, manager || null, phones, eik || null, preferred_caller_id || null);
 
         return NextResponse.json({
             success: true,
             message: 'Dentist added successfully',
             dentist: {
-                id, facility_name, region, cities_served: city, phones
+                id, facility_name, region, cities_served: city, phones, eik
             }
         });
 

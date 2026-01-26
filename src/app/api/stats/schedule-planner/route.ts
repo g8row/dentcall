@@ -195,13 +195,102 @@ export async function GET(request: NextRequest) {
 
   const totalDailyCapacity = callers.reduce((sum, c) => sum + c.daily_target, 0);
 
-  return NextResponse.json({
-    regions: enrichedStats.map(s => ({
+  // Build virtual regions for users with preferred doctors
+  const userRegions: RegionStats[] = [];
+
+  for (const caller of callers) {
+    // Get available dentists for this caller (preferred_caller_id = caller.id)
+    const userDentists = db.prepare(`
+      SELECT COUNT(*) as count
+      FROM dentists d
+      WHERE d.preferred_caller_id = ?
+      AND d.id NOT IN (
+        SELECT dentist_id FROM calls 
+        WHERE outcome IN ('INTERESTED', 'NOT_INTERESTED')
+      )
+      ${excludeDays > 0 ? `AND d.id NOT IN (
+        SELECT dentist_id FROM calls 
+        WHERE DATE(called_at) > DATE('now', '-${excludeDays} days')
+      )` : ''}
+    `).get(caller.id) as { count: number };
+
+    if (userDentists.count > 0) {
+      userRegions.push({
+        region: `★ Клиенти ${caller.username}`,
+        total_dentists: userDentists.count,
+        called_dentists: 0,
+        coverage_percent: 0,
+        interested: 0,
+        not_interested: 0,
+        no_answer: 0,
+        callbacks_pending: 0,
+        interest_rate: 0,
+        last_called: null,
+        days_since_last: null,
+        priority_score: 9999, // Very high priority
+        available_dentists: userDentists.count,
+        preferred_available: userDentists.count,
+      });
+    }
+  }
+
+  // Build Implants virtual region (doctors with wants_implants = 1)
+  const implantDentists = db.prepare(`
+    SELECT COUNT(*) as count
+    FROM dentists d
+    WHERE d.wants_implants = 1
+    AND d.id NOT IN (
+      SELECT dentist_id FROM calls 
+      WHERE outcome IN ('INTERESTED', 'NOT_INTERESTED')
+    )
+    ${excludeDays > 0 ? `AND d.id NOT IN (
+      SELECT dentist_id FROM calls 
+      WHERE DATE(called_at) > DATE('now', '-${excludeDays} days')
+    )` : ''}
+  `).get() as { count: number };
+
+  const implantsRegion: RegionStats | null = implantDentists.count > 0 ? {
+    region: '🦷 Импланти',
+    total_dentists: implantDentists.count,
+    called_dentists: 0,
+    coverage_percent: 0,
+    interested: 0,
+    not_interested: 0,
+    no_answer: 0,
+    callbacks_pending: 0,
+    interest_rate: 0,
+    last_called: null,
+    days_since_last: null,
+    priority_score: 8888, // High priority
+    available_dentists: implantDentists.count,
+    preferred_available: 0,
+  } : null;
+
+  // Adjust geographic region counts by subtracting preferred doctors
+  const adjustedStats = enrichedStats.map(s => {
+    // Subtract preferred doctors from the available count for this region
+    const preferredInRegion = preferredBreakdown
+      .filter(p => p.region === s.region)
+      .reduce((sum, p) => sum + p.count, 0);
+
+    return {
       ...s,
+      available_dentists: Math.max(0, s.available_dentists - preferredInRegion),
       preferred_breakdown: preferredBreakdown
         .filter(p => p.region === s.region)
         .reduce((acc, curr) => ({ ...acc, [curr.username]: curr.count }), {} as Record<string, number>)
-    })),
+    };
+  });
+
+  // Combine all regions: user regions first, then implants, then geographic
+  const allRegions = [
+    ...userRegions,
+    ...(implantsRegion ? [implantsRegion] : []),
+    ...adjustedStats,
+  ];
+
+  return NextResponse.json({
+    regions: allRegions,
     suggestions,
     callers,
     totalDailyCapacity,

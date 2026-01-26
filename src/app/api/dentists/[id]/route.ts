@@ -55,6 +55,10 @@ export async function PATCH(
             const phonesVal = Array.isArray(body.phones) ? JSON.stringify(body.phones) : body.phones;
             params.push(phonesVal);
         }
+        if (body.eik !== undefined) {
+            setClauses.push('eik = ?');
+            params.push(body.eik || null);
+        }
         // Handle address/email if you have those columns, but schema in db.ts only lists standard ones + 'locations'
         // If 'address' or 'email' were passed, they might need to go into a 'locations' JSON or ignored if no column.
         // Looking at db.ts scheme: facility_name, region, manager, phones, services, cities_served, locations, staff, preferred_caller_id

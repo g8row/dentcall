@@ -11,6 +11,7 @@ interface Dentist {
     preferred_caller_id: string | null;
     manager: string | null;
     phones: string | string[];
+    eik: string | null;
 }
 
 interface Props {
@@ -28,6 +29,7 @@ export default function EditDentistModal({ isOpen, onClose, onSuccess, dentist }
         city: '',
         manager: '',
         phone: '', // We'll edit the first phone or join them? Let's treat as comma-separated string for editing multiple
+        eik: '',
         preferred_caller_id: ''
     });
 
@@ -57,6 +59,7 @@ export default function EditDentistModal({ isOpen, onClose, onSuccess, dentist }
                 city: dentist.cities_served?.replace(/["\[\]]/g, '') || '', // Simple cleanup
                 manager: dentist.manager || '',
                 phone: phoneStr,
+                eik: dentist.eik || '',
                 preferred_caller_id: dentist.preferred_caller_id || ''
             });
 
@@ -122,6 +125,7 @@ export default function EditDentistModal({ isOpen, onClose, onSuccess, dentist }
                     city: formData.city,
                     manager: formData.manager,
                     phones: phonesArray,
+                    eik: formData.eik || null,
                     preferred_caller_id: formData.preferred_caller_id || null
                 }),
             });
@@ -222,6 +226,17 @@ export default function EditDentistModal({ isOpen, onClose, onSuccess, dentist }
                                     <option key={caller.id} value={caller.id}>{caller.username}</option>
                                 ))}
                             </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-1">EIK / BULSTAT</label>
+                            <input
+                                type="text"
+                                value={formData.eik}
+                                onChange={e => setFormData({ ...formData, eik: e.target.value })}
+                                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                placeholder="123456789"
+                            />
                         </div>
 
                         <div className="flex justify-end gap-3 mt-6">

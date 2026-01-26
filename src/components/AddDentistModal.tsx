@@ -20,6 +20,7 @@ export default function AddDentistModal({ isOpen, onClose, onSuccess, regions }:
         manager: '',
         phone: '',
         email: '',
+        eik: '',
         preferred_caller_id: ''
     });
 
@@ -90,6 +91,7 @@ export default function AddDentistModal({ isOpen, onClose, onSuccess, regions }:
                     manager: '',
                     phone: '',
                     email: '',
+                    eik: '',
                     preferred_caller_id: ''
                 });
             } else {
@@ -195,6 +197,16 @@ export default function AddDentistModal({ isOpen, onClose, onSuccess, regions }:
                                     className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                                 />
                             </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-1">EIK / BULSTAT</label>
+                            <input
+                                type="text"
+                                value={formData.eik}
+                                onChange={e => setFormData({ ...formData, eik: e.target.value })}
+                                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                placeholder="123456789"
+                            />
                         </div>
 
                         <div>

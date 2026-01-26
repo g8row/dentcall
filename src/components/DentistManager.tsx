@@ -12,6 +12,7 @@ interface Dentist {
     preferred_caller_id: string | null;
     manager: string | null;
     phones: string | string[];
+    eik: string | null;
 }
 
 interface User {

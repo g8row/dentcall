@@ -24,13 +24,14 @@ interface Assignment {
     cities_served: string;
     completed: number;
     preferred_caller_id?: string;
+    wants_implants?: number;
 }
 
 interface CallLog {
     id?: string;
     dentist_id: string;
     outcome: string;
-    notes: string;
+    notes: string | null;
     called_at: string;
 }
 
@@ -59,6 +60,7 @@ export default function CallerDashboard() {
     const [submitting, setSubmitting] = useState<string | null>(null);
     const [addingPhone, setAddingPhone] = useState<string | null>(null);
     const [newPhone, setNewPhone] = useState('');
+    const [implantStatus, setImplantStatus] = useState<Record<string, boolean>>({});
 
     const today = format(new Date(), 'yyyy-MM-dd');
 
@@ -73,6 +75,13 @@ export default function CallerDashboard() {
 
         setAssignments(assignmentsData.assignments || []);
         setTodayCalls(callsData.calls || []);
+
+        // Initialize implant status from assignments
+        const implants: Record<string, boolean> = {};
+        (assignmentsData.assignments || []).forEach((a: Assignment) => {
+            implants[a.dentist_id] = !!a.wants_implants;
+        });
+        setImplantStatus(implants);
     }, [today]);
 
     useEffect(() => {
@@ -122,13 +131,14 @@ export default function CallerDashboard() {
                 setAssignments(assignments.map(a =>
                     a.dentist_id === dentistId ? { ...a, completed: 1 } : a
                 ));
-                setTodayCalls([...todayCalls, {
+                // Prepend new call so it's found first by .find()
+                setTodayCalls([{
                     id: data.id,
                     dentist_id: dentistId,
                     outcome,
                     notes: notes[dentistId] || '',
                     called_at: new Date().toISOString(),
-                }]);
+                }, ...todayCalls]);
                 setActiveCard(null);
                 setNotes({ ...notes, [dentistId]: '' });
             }
@@ -141,21 +151,32 @@ export default function CallerDashboard() {
         setSubmitting(dentistId);
 
         try {
-            const res = await fetch(`/api/calls/${callId}`, {
-                method: 'PATCH',
+            // Create a NEW call record to preserve history
+            const res = await fetch('/api/calls', {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    dentist_id: dentistId,
                     outcome,
-                    notes: notes[dentistId] || undefined,
+                    notes: notes[dentistId] || null,
                 }),
             });
 
             if (res.ok) {
-                setTodayCalls(todayCalls.map(c =>
-                    c.id === callId ? { ...c, outcome, notes: notes[dentistId] || c.notes } : c
-                ));
+                const data = await res.json();
+
+                // Prepend the new call so it overrides the old one in UI (since .find returns first match)
+                setTodayCalls([{
+                    id: data.id,
+                    dentist_id: dentistId,
+                    outcome,
+                    notes: notes[dentistId] || null,
+                    called_at: new Date().toISOString(),
+                }, ...todayCalls]);
+
                 setEditingCall(null);
                 setActiveCard(null);
+                setNotes({ ...notes, [dentistId]: '' });
             }
         } finally {
             setSubmitting(null);
@@ -165,16 +186,26 @@ export default function CallerDashboard() {
     const completedCount = assignments.filter(a => a.completed).length;
     const progress = assignments.length > 0 ? (completedCount / assignments.length) * 100 : 0;
 
-    // Outcome stats
+    // Get unique latest calls per dentist for stats and UI
+    const latestCallsMap = new Map<string, CallLog>();
+    todayCalls.forEach(c => {
+        if (!latestCallsMap.has(c.dentist_id)) {
+            latestCallsMap.set(c.dentist_id, c);
+        }
+    });
+    const uniqueCalls = Array.from(latestCallsMap.values());
+
+    // Outcome stats (based on unique latest status)
     const outcomeStats = {
-        interested: todayCalls.filter(c => c.outcome === 'INTERESTED').length,
-        not_interested: todayCalls.filter(c => c.outcome === 'NOT_INTERESTED').length,
-        no_answer: todayCalls.filter(c => c.outcome === 'NO_ANSWER').length,
-        callback: todayCalls.filter(c => c.outcome === 'CALLBACK').length,
+        interested: uniqueCalls.filter(c => c.outcome === 'INTERESTED').length,
+        not_interested: uniqueCalls.filter(c => c.outcome === 'NOT_INTERESTED').length,
+        no_answer: uniqueCalls.filter(c => c.outcome === 'NO_ANSWER').length,
+        callback: uniqueCalls.filter(c => c.outcome === 'CALLBACK').length,
+        order_taken: uniqueCalls.filter(c => c.outcome === 'ORDER_TAKEN').length,
     };
 
-    // Get calls by dentist ID
-    const callsByDentist = new Map(todayCalls.map(c => [c.dentist_id, c]));
+    // Get calls by dentist ID (already have the map)
+    const callsByDentist = latestCallsMap;
 
     if (loading) {
         return (
@@ -310,33 +341,51 @@ export default function CallerDashboard() {
                                             )}
                                         </div>
 
-                                        {/* Phone Numbers */}
-                                        <div className="mt-3 flex flex-wrap gap-2 items-center">
-                                            {assignment.phones.map((phone, idx) => (
-                                                <a
-                                                    key={idx}
-                                                    href={`tel:${phone}`}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm font-medium hover:bg-emerald-500/30 transition"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                                                    </svg>
-                                                    {phone}
-                                                </a>
-                                            ))}
+                                        {/* Phone Numbers and Implant Button Row */}
+                                        <div className="mt-3 flex items-start justify-between gap-4">
+                                            {/* Phones - left side, stacking */}
+                                            <div className="flex flex-wrap gap-2 items-center flex-1">
+                                                {assignment.phones.map((phone, idx) => (
+                                                    <a
+                                                        key={idx}
+                                                        href={`tel:${phone}`}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm font-medium hover:bg-emerald-500/30 transition"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                                        </svg>
+                                                        {phone}
+                                                    </a>
+                                                ))}
 
-                                            {/* Add Phone Button/Input */}
-                                            {addingPhone === assignment.id ? (
-                                                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                                                    <input
-                                                        type="tel"
-                                                        value={newPhone}
-                                                        onChange={(e) => setNewPhone(e.target.value)}
-                                                        placeholder="+359..."
-                                                        className="px-2 py-1 bg-slate-900 border border-slate-600 rounded text-sm text-white w-28"
-                                                        onKeyDown={async (e) => {
-                                                            if (e.key === 'Enter' && newPhone.trim()) {
+                                                {/* Add Phone Button/Input */}
+                                                {addingPhone === assignment.id ? (
+                                                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                                        <input
+                                                            type="tel"
+                                                            value={newPhone}
+                                                            onChange={(e) => setNewPhone(e.target.value)}
+                                                            placeholder="+359..."
+                                                            className="px-2 py-1 bg-slate-900 border border-slate-600 rounded text-sm text-white w-28"
+                                                            onKeyDown={async (e) => {
+                                                                if (e.key === 'Enter' && newPhone.trim()) {
+                                                                    const res = await fetch('/api/dentists', {
+                                                                        method: 'PATCH',
+                                                                        headers: { 'Content-Type': 'application/json' },
+                                                                        body: JSON.stringify({ dentist_id: assignment.dentist_id, add_phone: newPhone }),
+                                                                    });
+                                                                    if (res.ok) {
+                                                                        loadData();
+                                                                        setAddingPhone(null);
+                                                                        setNewPhone('');
+                                                                    }
+                                                                }
+                                                            }}
+                                                        />
+                                                        <button
+                                                            onClick={async () => {
+                                                                if (!newPhone.trim()) return;
                                                                 const res = await fetch('/api/dentists', {
                                                                     method: 'PATCH',
                                                                     headers: { 'Content-Type': 'application/json' },
@@ -347,45 +396,53 @@ export default function CallerDashboard() {
                                                                     setAddingPhone(null);
                                                                     setNewPhone('');
                                                                 }
-                                                            }
-                                                        }}
-                                                    />
+                                                            }}
+                                                            className="p-1 text-emerald-400 hover:text-emerald-300"
+                                                        >
+                                                            ✓
+                                                        </button>
+                                                        <button
+                                                            onClick={() => { setAddingPhone(null); setNewPhone(''); }}
+                                                            className="p-1 text-slate-400 hover:text-white"
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    </div>
+                                                ) : (
                                                     <button
-                                                        onClick={async () => {
-                                                            if (!newPhone.trim()) return;
-                                                            const res = await fetch('/api/dentists', {
-                                                                method: 'PATCH',
-                                                                headers: { 'Content-Type': 'application/json' },
-                                                                body: JSON.stringify({ dentist_id: assignment.dentist_id, add_phone: newPhone }),
-                                                            });
-                                                            if (res.ok) {
-                                                                loadData();
-                                                                setAddingPhone(null);
-                                                                setNewPhone('');
-                                                            }
-                                                        }}
-                                                        className="p-1 text-emerald-400 hover:text-emerald-300"
+                                                        onClick={(e) => { e.stopPropagation(); setAddingPhone(assignment.id); }}
+                                                        className="inline-flex items-center gap-1 px-2 py-1.5 bg-slate-700/50 text-slate-400 rounded-lg text-sm hover:bg-slate-700 hover:text-white transition"
+                                                        title="Add phone number"
                                                     >
-                                                        ✓
+                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                                        </svg>
                                                     </button>
-                                                    <button
-                                                        onClick={() => { setAddingPhone(null); setNewPhone(''); }}
-                                                        className="p-1 text-slate-400 hover:text-white"
-                                                    >
-                                                        ✕
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); setAddingPhone(assignment.id); }}
-                                                    className="inline-flex items-center gap-1 px-2 py-1.5 bg-slate-700/50 text-slate-400 rounded-lg text-sm hover:bg-slate-700 hover:text-white transition"
-                                                    title="Add phone number"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                                    </svg>
-                                                </button>
-                                            )}
+                                                )}
+                                            </div>
+
+                                            {/* Implant Toggle Button - Right side */}
+                                            <button
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    const newValue = !implantStatus[assignment.dentist_id];
+                                                    setImplantStatus({ ...implantStatus, [assignment.dentist_id]: newValue });
+
+                                                    await fetch('/api/dentists', {
+                                                        method: 'PATCH',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ dentist_id: assignment.dentist_id, wants_implants: newValue }),
+                                                    });
+                                                }}
+                                                className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition border-2 ${implantStatus[assignment.dentist_id]
+                                                    ? 'bg-purple-500/30 border-purple-500 text-purple-300'
+                                                    : 'bg-slate-700/50 border-slate-600 text-slate-400 hover:border-purple-500/50 hover:text-purple-300'
+                                                    }`}
+                                            >
+                                                <span className="text-lg">🦷</span>
+                                                <span>Импланти</span>
+                                                {implantStatus[assignment.dentist_id] && <span>✓</span>}
+                                            </button>
                                         </div>
 
                                         {/* Show notes if completed */}
@@ -417,12 +474,12 @@ export default function CallerDashboard() {
                                                 />
                                             </div>
 
-                                            {/* Outcome Buttons */}
+                                            {/* Outcome Buttons - Centered */}
                                             <div>
-                                                <label className="block text-sm font-medium text-slate-300 mb-2">
+                                                <label className="block text-sm font-medium text-slate-300 mb-2 text-center">
                                                     {t('call_outcome')}
                                                 </label>
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                <div className="flex flex-wrap justify-center gap-2 max-w-lg mx-auto">
                                                     {OUTCOMES.map((outcome) => (
                                                         <button
                                                             key={outcome.value}
@@ -434,9 +491,9 @@ export default function CallerDashboard() {
                                                                 }
                                                             }}
                                                             disabled={submitting === assignment.dentist_id}
-                                                            className={`p-3 rounded-lg border-2 text-sm font-medium transition flex items-center justify-center gap-2 
-                              ${call?.outcome === outcome.value ? `${outcome.bg} ${outcome.border} ${outcome.text}` : ''}
-                              ${outcome.color === 'emerald' ? 'border-emerald-500/50 hover:bg-emerald-500/20 text-emerald-400' :
+                                                            className={`p-3 rounded-lg border-2 text-sm font-medium transition flex items-center justify-center gap-2 w-[32%]
+                                                              ${call?.outcome === outcome.value ? `${outcome.bg} ${outcome.border} ${outcome.text}` : ''}
+                                                              ${outcome.color === 'emerald' ? 'border-emerald-500/50 hover:bg-emerald-500/20 text-emerald-400' :
                                                                     outcome.color === 'red' ? 'border-red-500/50 hover:bg-red-500/20 text-red-400' :
                                                                         outcome.color === 'amber' ? 'border-amber-500/50 hover:bg-amber-500/20 text-amber-400' :
                                                                             outcome.color === 'cyan' ? 'border-cyan-500/50 hover:bg-cyan-500/20 text-cyan-400' :
@@ -490,8 +547,12 @@ export default function CallerDashboard() {
                         <div className="text-xs text-amber-400/70">📞 {t('callback')}</div>
                     </div>
                     <div>
-                        <div className="text-xl font-bold text-white">{assignments.length - completedCount}</div>
-                        <div className="text-xs text-slate-500">{t('remaining')}</div>
+                        <div className="text-xl font-bold text-cyan-400">{outcomeStats.order_taken}</div>
+                        <div className="text-xs text-cyan-400/70">📦 {t('order_taken')}</div>
+                    </div>
+                    <div>
+                        <div className="text-xl font-bold text-purple-400">{Object.values(implantStatus).filter(Boolean).length}</div>
+                        <div className="text-xs text-purple-400/70">🦷 Импланти</div>
                     </div>
                 </div>
             </div >
