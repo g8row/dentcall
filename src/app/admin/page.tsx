@@ -18,6 +18,7 @@ import DentistManager from '@/components/DentistManager';
 interface User {
     id: string;
     username: string;
+    display_name: string | null;
     role: string;
     daily_target: number;
 }
@@ -104,7 +105,7 @@ export default function AdminDashboard() {
     const [appendMode, setAppendMode] = useState(false);
     const [scheduleResult, setScheduleResult] = useState<{ message: string; region_breakdown?: Record<string, number> } | null>(null);
 
-    const [newUser, setNewUser] = useState({ username: '', password: '', daily_target: 50 });
+    const [newUser, setNewUser] = useState({ username: '', password: '', daily_target: 50, display_name: '' });
     const [activeTab, setActiveTab] = useState<'calendar' | 'users' | 'data' | 'stats' | 'database'>('stats');
     const [editingUser, setEditingUser] = useState<User | null>(null);
 
@@ -280,7 +281,7 @@ export default function AdminDashboard() {
             const data = await res.json();
             setUsers([...users, data.user]);
             setShowUserModal(false);
-            setNewUser({ username: '', password: '', daily_target: 50 });
+            setNewUser({ username: '', password: '', daily_target: 50, display_name: '' });
         }
     };
 
@@ -304,6 +305,34 @@ export default function AdminDashboard() {
             onConfirm: async () => {
                 await fetch(`/api/users/${userId}`, { method: 'DELETE' });
                 setUsers(users.filter(u => u.id !== userId));
+                closeConfirmModal();
+            }
+        });
+    };
+
+    const handleDeleteHistory = async (type: 'calls' | 'assignments' | 'all') => {
+        const titles = {
+            calls: t('delete_all_calls'),
+            assignments: t('delete_all_assignments'),
+            all: t('delete_all_history')
+        };
+        setConfirmModal({
+            isOpen: true,
+            title: titles[type],
+            message: t('delete_history_confirm'),
+            isDestructive: true,
+            onConfirm: async () => {
+                try {
+                    const res = await fetch(`/api/data?type=${type}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        const data = await res.json();
+                        setSuccessNotification(data.message);
+                        setTimeout(() => setSuccessNotification(null), 5000);
+                        loadCalendarData();
+                    }
+                } catch (err) {
+                    console.error('Delete history error:', err);
+                }
                 closeConfirmModal();
             }
         });
@@ -970,6 +999,7 @@ export default function AdminDashboard() {
                                     <thead className="bg-slate-700/50">
                                         <tr>
                                             <th className="px-4 py-3 text-left text-sm font-medium text-slate-300">{t('username')}</th>
+                                            <th className="px-4 py-3 text-left text-sm font-medium text-slate-300">{t('display_name') || 'Име'}</th>
                                             <th className="px-4 py-3 text-left text-sm font-medium text-slate-300">{t('role')}</th>
                                             <th className="px-4 py-3 text-left text-sm font-medium text-slate-300">{t('target')}</th>
                                             <th className="px-4 py-3 text-right text-sm font-medium text-slate-300">{t('actions')}</th>
@@ -979,6 +1009,19 @@ export default function AdminDashboard() {
                                         {users.map((u) => (
                                             <tr key={u.id} className="hover:bg-slate-700/30">
                                                 <td className="px-4 py-3 text-white">{u.username}</td>
+                                                <td className="px-4 py-3">
+                                                    {editingUser?.id === u.id ? (
+                                                        <input
+                                                            type="text"
+                                                            value={editingUser.display_name || ''}
+                                                            onChange={(e) => setEditingUser({ ...editingUser, display_name: e.target.value })}
+                                                            className="w-32 px-2 py-1 bg-slate-900 border border-slate-600 rounded text-white"
+                                                            placeholder="Име..."
+                                                        />
+                                                    ) : (
+                                                        <span className="text-emerald-400">{u.display_name || u.username}</span>
+                                                    )}
+                                                </td>
                                                 <td className="px-4 py-3">
                                                     <span className={`px-2 py-1 rounded text-xs font-medium ${u.role === 'ADMIN' ? 'bg-purple-500/20 text-purple-400' : 'bg-cyan-500/20 text-cyan-400'
                                                         }`}>
@@ -1003,7 +1046,7 @@ export default function AdminDashboard() {
                                                             {editingUser?.id === u.id ? (
                                                                 <>
                                                                     <button
-                                                                        onClick={() => handleUpdateUser(u.id, { daily_target: editingUser.daily_target })}
+                                                                        onClick={() => handleUpdateUser(u.id, { daily_target: editingUser.daily_target, display_name: editingUser.display_name })}
                                                                         className="text-emerald-400 hover:text-emerald-300"
                                                                     >
                                                                         Save
@@ -1127,6 +1170,39 @@ export default function AdminDashboard() {
                                     <p className="text-sm text-slate-400">{t('export_stats_desc')}</p>
                                 </button>
                             </div>
+
+                            {/* Delete Section */}
+                            <div className="mt-8 pt-6 border-t border-slate-700">
+                                <h3 className="text-lg font-semibold text-red-400 mb-4">{t('delete_history_title')}</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <button
+                                        onClick={() => handleDeleteHistory('calls')}
+                                        className="p-6 bg-slate-800 rounded-xl border border-red-500/30 hover:border-red-500 transition text-left"
+                                    >
+                                        <div className="text-red-400 text-2xl mb-2">🗑️</div>
+                                        <h3 className="font-semibold mb-1 text-red-400">{t('delete_all_calls')}</h3>
+                                        <p className="text-sm text-slate-400">{t('delete_history_desc')}</p>
+                                    </button>
+
+                                    <button
+                                        onClick={() => handleDeleteHistory('assignments')}
+                                        className="p-6 bg-slate-800 rounded-xl border border-red-500/30 hover:border-red-500 transition text-left"
+                                    >
+                                        <div className="text-red-400 text-2xl mb-2">📅</div>
+                                        <h3 className="font-semibold mb-1 text-red-400">{t('delete_all_assignments')}</h3>
+                                        <p className="text-sm text-slate-400">{t('delete_assignments_desc')}</p>
+                                    </button>
+
+                                    <button
+                                        onClick={() => handleDeleteHistory('all')}
+                                        className="p-6 bg-slate-800 rounded-xl border border-red-500/30 hover:border-red-500 transition text-left"
+                                    >
+                                        <div className="text-red-400 text-2xl mb-2">⚠️</div>
+                                        <h3 className="font-semibold mb-1 text-red-400">{t('delete_all_history')}</h3>
+                                        <p className="text-sm text-slate-400">{t('delete_all_desc')}</p>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     )
                 }
@@ -1147,6 +1223,16 @@ export default function AdminDashboard() {
                                         onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
                                         className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white"
                                         required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-1">{t('display_name')}</label>
+                                    <input
+                                        type="text"
+                                        value={newUser.display_name}
+                                        onChange={(e) => setNewUser({ ...newUser, display_name: e.target.value })}
+                                        className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white"
+                                        placeholder="Име за показване..."
                                     />
                                 </div>
                                 <div>

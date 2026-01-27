@@ -22,6 +22,7 @@ const translations = {
         // Login
         login_title: 'Cold Caller App',
         username: 'Username',
+        display_name: 'Display Name',
         password: 'Password',
         login_button: 'Login',
 
@@ -170,6 +171,14 @@ const translations = {
         skipped: 'Duplicate/Skipped',
         errors: 'Errors',
         dismiss: 'Dismiss',
+        delete_all_calls: 'Delete Call Logs',
+        delete_all_assignments: 'Delete Assignments',
+        delete_all_history: 'Delete All History',
+        delete_history_desc: 'Permanently delete call logs',
+        delete_assignments_desc: 'Remove all scheduled assignments',
+        delete_all_desc: 'Clear both calls and assignments',
+        delete_history_confirm: 'Are you sure you want to delete all call history? This cannot be undone!',
+        delete_history_title: 'Delete History',
 
         // Dashboard Statistics
         statistics: 'Statistics',
@@ -366,6 +375,7 @@ const translations = {
         // Login
         login_title: 'Студени Обаждания',
         username: 'Потребител',
+        display_name: 'Име',
         password: 'Парола',
         login_button: 'Вход',
 
@@ -514,6 +524,14 @@ const translations = {
         skipped: 'Пропуснати',
         errors: 'Грешки',
         dismiss: 'Затвори',
+        delete_all_calls: 'Изтрий История',
+        delete_all_assignments: 'Изтрий Графици',
+        delete_all_history: 'Изтрий Всичко',
+        delete_history_desc: 'Постоянно изтрий всички обаждания',
+        delete_assignments_desc: 'Премахни всички планирани задачи',
+        delete_all_desc: 'Изчисти обаждания и графици',
+        delete_history_confirm: 'Сигурни ли сте, че искате да изтриете цялата история? Това действие е необратимо!',
+        delete_history_title: 'Изтриване на История',
 
         // Dashboard Statistics
         statistics: 'Статистика',

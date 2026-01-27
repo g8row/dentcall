@@ -32,6 +32,7 @@ interface CityWithStats {
 interface Caller {
     id: string;
     username: string;
+    display_name: string | null;
     daily_target: number;
 }
 
@@ -678,7 +679,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
                                             className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500"
                                         />
                                         <div className="flex-1 flex justify-between items-center">
-                                            <span className="text-sm text-white">{caller.username}</span>
+                                            <span className="text-sm text-white">{caller.display_name || caller.username}</span>
                                             <span className="text-xs text-slate-500">{caller.daily_target} {t('calls')}/day</span>
                                         </div>
                                     </label>

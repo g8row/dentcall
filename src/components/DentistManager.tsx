@@ -18,6 +18,7 @@ interface Dentist {
 interface User {
     id: string;
     username: string;
+    display_name: string | null;
 }
 
 export default function DentistManager() {
@@ -266,7 +267,7 @@ export default function DentistManager() {
                                                     : 'text-slate-500'
                                                     }`}>
                                                     {dentist.preferred_caller_id
-                                                        ? users.find(u => u.id === dentist.preferred_caller_id)?.username || 'Unknown'
+                                                        ? users.find(u => u.id === dentist.preferred_caller_id)?.display_name || users.find(u => u.id === dentist.preferred_caller_id)?.username || 'Unknown'
                                                         : 'None'}
                                                 </span>
                                             </td>

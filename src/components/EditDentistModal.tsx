@@ -35,7 +35,7 @@ export default function EditDentistModal({ isOpen, onClose, onSuccess, dentist }
 
     const [loading, setLoading] = useState(false);
     const [availableCities, setAvailableCities] = useState<string[]>([]);
-    const [callers, setCallers] = useState<{ id: string; username: string }[]>([]);
+    const [callers, setCallers] = useState<{ id: string; username: string; display_name: string | null }[]>([]);
     const [regions, setRegions] = useState<string[]>([]);
 
     // Load initial data
@@ -223,7 +223,7 @@ export default function EditDentistModal({ isOpen, onClose, onSuccess, dentist }
                             >
                                 <option value="">{t('no_preference')}</option>
                                 {callers.map(caller => (
-                                    <option key={caller.id} value={caller.id}>{caller.username}</option>
+                                    <option key={caller.id} value={caller.id}>{caller.display_name || caller.username}</option>
                                 ))}
                             </select>
                         </div>

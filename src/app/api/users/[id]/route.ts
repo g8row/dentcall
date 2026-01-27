@@ -15,7 +15,7 @@ export async function PATCH(
 
     try {
         const { id } = await params;
-        const { username, password, role, daily_target } = await request.json();
+        const { username, password, role, daily_target, display_name } = await request.json();
 
         const updates: string[] = [];
         const values: (string | number)[] = [];
@@ -23,6 +23,10 @@ export async function PATCH(
         if (username) {
             updates.push('username = ?');
             values.push(username);
+        }
+        if (display_name !== undefined) {
+            updates.push('display_name = ?');
+            values.push(display_name);
         }
         if (password) {
             updates.push('password = ?');

@@ -157,6 +157,15 @@ function getDb(): Database.Database {
     logger.migration('Added eik column to dentists table');
   }
 
+  // Migration: Add display_name column to users if it doesn't exist
+  const hasDisplayName = userColumns.some(col => col.name === 'display_name');
+  if (!hasDisplayName) {
+    _db.exec(`ALTER TABLE users ADD COLUMN display_name TEXT`);
+    // Backfill existing users: copy username to display_name
+    _db.exec(`UPDATE users SET display_name = username WHERE display_name IS NULL`);
+    logger.migration('Added display_name column to users table and backfilled from username');
+  }
+
   return _db;
 }
 
@@ -197,6 +206,7 @@ export type CallOutcome =
 export interface User {
   id: string;
   username: string;
+  display_name: string | null;
   password: string;
   role: Role;
   daily_target: number;

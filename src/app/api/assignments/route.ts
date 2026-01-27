@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
 
         const assignments = db.prepare(`
     SELECT a.*, d.facility_name, d.region, d.phones, d.manager, d.cities_served, d.preferred_caller_id, d.wants_implants,
-           u.username as caller_name
+           COALESCE(u.display_name, u.username) as caller_name
     FROM assignments a
     JOIN dentists d ON a.dentist_id = d.id
     JOIN users u ON a.caller_id = u.id
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
         SELECT 
             DATE(a.date) as date,
             d.region,
-            u.username as caller_name,
+            COALESCE(u.display_name, u.username) as caller_name,
             a.caller_id,
             camp.name as campaign_name,
             camp.id as campaign_id,

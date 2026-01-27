@@ -11,7 +11,7 @@ export async function GET() {
     }
 
     const users = db.prepare(`
-    SELECT id, username, role, daily_target, created_at 
+    SELECT id, username, display_name, role, daily_target, created_at 
     FROM users 
     ORDER BY created_at DESC
   `).all() as Omit<User, 'password'>[];
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const { username, password, role, daily_target } = await request.json();
+        const { username, password, role, daily_target, display_name } = await request.json();
 
         if (!username || !password) {
             return NextResponse.json(
@@ -48,15 +48,17 @@ export async function POST(request: NextRequest) {
 
         const hashedPassword = await hashPassword(password);
         const id = generateId();
+        // Use display_name if provided, otherwise fall back to username
+        const finalDisplayName = display_name || username;
 
         db.prepare(`
-      INSERT INTO users (id, username, password, role, daily_target)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(id, username, hashedPassword, role || 'CALLER', daily_target || 50);
+      INSERT INTO users (id, username, display_name, password, role, daily_target)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(id, username, finalDisplayName, hashedPassword, role || 'CALLER', daily_target || 50);
 
         return NextResponse.json({
             success: true,
-            user: { id, username, role: role || 'CALLER', daily_target: daily_target || 50 },
+            user: { id, username, display_name: finalDisplayName, role: role || 'CALLER', daily_target: daily_target || 50 },
         });
     } catch (error) {
         console.error('Create user error:', error);

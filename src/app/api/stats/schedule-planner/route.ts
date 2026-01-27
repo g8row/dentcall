@@ -172,7 +172,7 @@ export async function GET(request: NextRequest) {
   const preferredBreakdown = db.prepare(`
     SELECT 
       d.region,
-      u.username,
+      COALESCE(u.display_name, u.username) as display_name,
       COUNT(*) as count
     FROM dentists d
     JOIN users u ON d.preferred_caller_id = u.id
@@ -184,14 +184,14 @@ export async function GET(request: NextRequest) {
       SELECT dentist_id FROM calls 
       WHERE DATE(called_at) > DATE('now', '-${excludeDays} days')
     )` : ''}
-    GROUP BY d.region, u.username
-  `).all() as { region: string; username: string; count: number }[];
+    GROUP BY d.region, u.id
+  `).all() as { region: string; display_name: string; count: number }[];
 
   const callers = db.prepare(`
-    SELECT id, username, daily_target 
+    SELECT id, username, display_name, daily_target 
     FROM users 
     WHERE role = 'CALLER' AND daily_target > 0
-  `).all() as { id: string; username: string; daily_target: number }[];
+  `).all() as { id: string; username: string; display_name: string | null; daily_target: number }[];
 
   const totalDailyCapacity = callers.reduce((sum, c) => sum + c.daily_target, 0);
 
@@ -216,7 +216,7 @@ export async function GET(request: NextRequest) {
 
     if (userDentists.count > 0) {
       userRegions.push({
-        region: `★ Клиенти ${caller.username}`,
+        region: `★ Клиенти ${caller.display_name || caller.username}`,
         total_dentists: userDentists.count,
         called_dentists: 0,
         coverage_percent: 0,
@@ -278,7 +278,7 @@ export async function GET(request: NextRequest) {
       available_dentists: Math.max(0, s.available_dentists - preferredInRegion),
       preferred_breakdown: preferredBreakdown
         .filter(p => p.region === s.region)
-        .reduce((acc, curr) => ({ ...acc, [curr.username]: curr.count }), {} as Record<string, number>)
+        .reduce((acc, curr) => ({ ...acc, [curr.display_name]: curr.count }), {} as Record<string, number>)
     };
   });
 
