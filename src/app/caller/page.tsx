@@ -268,7 +268,7 @@ export default function CallerDashboard() {
                         <div className="text-center py-12">
                             <div className="text-6xl mb-4">📋</div>
                             <h2 className="text-xl font-semibold mb-2">{t('no_assignments')}</h2>
-                            <p className="text-slate-400">Check back later or contact your admin</p>
+                            <p className="text-slate-400">{t('check_back_later')}</p>
                         </div>
                     ) : (
                         assignments.map((assignment) => {
@@ -440,7 +440,7 @@ export default function CallerDashboard() {
                                                     }`}
                                             >
                                                 <span className="text-lg">🦷</span>
-                                                <span>Импланти</span>
+                                                <span>{t('implants_label')}</span>
                                                 {implantStatus[assignment.dentist_id] && <span>✓</span>}
                                             </button>
                                         </div>
@@ -552,7 +552,7 @@ export default function CallerDashboard() {
                     </div>
                     <div>
                         <div className="text-xl font-bold text-purple-400">{Object.values(implantStatus).filter(Boolean).length}</div>
-                        <div className="text-xs text-purple-400/70">🦷 Импланти</div>
+                        <div className="text-xs text-purple-400/70">🦷 {t('implants_label')}</div>
                     </div>
                 </div>
             </div >

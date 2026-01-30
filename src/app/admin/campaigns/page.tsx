@@ -156,10 +156,10 @@ export default function CampaignsPage() {
                 setModalConfig(prev => ({ ...prev, isOpen: false }));
             } else {
                 const data = await res.json();
-                alert(`Error: ${data.error || 'Failed to cancel campaign'}`);
+                alert(`${t('error')} ${data.error || t('error_cancel_campaign')}`);
             }
         } catch (err) {
-            alert('Failed to cancel campaign');
+            alert(t('error_cancel_campaign'));
             console.error(err);
         }
     };
@@ -187,10 +187,10 @@ export default function CampaignsPage() {
                 loadCampaigns();
             } else {
                 const data = await res.json();
-                alert(`Error: ${data.error || 'Failed to update campaign'}`);
+                alert(`${t('error')}: ${data.error || t('error_update_campaign')}`);
             }
         } catch (err) {
-            alert('Failed to update campaign');
+            alert(t('error_update_campaign'));
             console.error(err);
         }
     };
@@ -256,15 +256,15 @@ export default function CampaignsPage() {
                 setShowEditModal(false);
                 loadCampaigns();
                 if (data.rescheduled > 0) {
-                    alert(`Campaign updated. ${data.rescheduled} assignments rescheduled.`);
+                    alert(t('campaign_rescheduled_msg').replace('{count}', data.rescheduled));
                 }
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to save');
+                alert(data.error || t('error_save_campaign'));
             }
         } catch (err) {
             console.error(err);
-            alert('Error saving campaign');
+            alert(t('error_save_campaign'));
         }
     };
 

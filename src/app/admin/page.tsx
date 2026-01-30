@@ -428,7 +428,7 @@ export default function AdminDashboard() {
             loadCalendarData();
         } else {
             setScheduleResult({
-                message: `Error: ${data.error}. Available: ${data.available_dentists || 0}`,
+                message: t('schedule_error_available').replace('{error}', data.error).replace('{count}', data.available_dentists || 0),
             });
         }
     };
@@ -449,7 +449,7 @@ export default function AdminDashboard() {
                         alert(`${t('error_generic')}: ${data.error || 'Unknown error'}`);
                     }
                 } catch (err) {
-                    alert('Failed to delete schedule');
+                    alert(t('error_delete_schedule'));
                     console.error(err);
                 }
                 closeConfirmModal();

@@ -103,7 +103,7 @@ export default function DentistManager() {
     };
 
     const handleDeleteClick = async (dentist: Dentist) => {
-        if (!confirm(`Are you sure you want to delete "${dentist.facility_name}"? This action cannot be undone.`)) {
+        if (!confirm(t('confirm_delete_dentist').replace('{name}', dentist.facility_name))) {
             return;
         }
 
@@ -115,11 +115,11 @@ export default function DentistManager() {
             if (res.ok) {
                 fetchData(page); // Reload data
             } else {
-                alert(data.error || 'Failed to delete dentist');
+                alert(data.error || t('error_delete_dentist'));
             }
         } catch (err) {
             console.error('Delete error:', err);
-            alert('Failed to delete dentist');
+            alert(t('error_delete_dentist'));
         } finally {
             setDeleting(null);
         }
@@ -134,7 +134,7 @@ export default function DentistManager() {
             if (res.ok) {
                 if (mode === 'server') {
                     const data = await res.json();
-                    alert(`Backup saved to server: ${data.filename}`);
+                    alert(t('backup_success_server').replace('{filename}', data.filename));
                 } else {
                     const blob = await res.blob();
                     const url = window.URL.createObjectURL(blob);
@@ -144,14 +144,14 @@ export default function DentistManager() {
                     document.body.appendChild(a);
                     a.click();
                     window.URL.revokeObjectURL(url);
-                    alert('Backup downloaded successfully');
+                    alert(t('backup_success_download'));
                 }
             } else {
-                alert('Backup failed');
+                alert(t('backup_failed'));
             }
         } catch (err) {
             console.error('Backup error', err);
-            alert('Backup error');
+            alert(t('error_backup'));
         } finally {
             setBackingUp(false);
         }
@@ -178,7 +178,8 @@ export default function DentistManager() {
     };
 
     const handleBulkAssign = async () => {
-        if (!confirm(`Assign ${selectedDentists.length} dentists to ${bulkAssignUser ? users.find(u => u.id === bulkAssignUser)?.username : 'None'}?`)) {
+        const userName = bulkAssignUser ? users.find(u => u.id === bulkAssignUser)?.username : t('bulk_assign_none');
+        if (!confirm(t('confirm_bulk_assign').replace('{count}', selectedDentists.length.toString()).replace('{user}', userName || ''))) {
             return;
         }
 
