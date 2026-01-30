@@ -81,7 +81,24 @@ export async function DELETE(
             );
         }
 
-        db.prepare('DELETE FROM users WHERE id = ?').run(id);
+        // Use a transaction to ensure all related data is cleaned up
+        // or the operation is rolled back entirely
+        const deleteUser = db.transaction((userId) => {
+            // 1. Unassign from dentists (nullable foreign key)
+            db.prepare('UPDATE dentists SET preferred_caller_id = NULL WHERE preferred_caller_id = ?').run(userId);
+
+            // 2. Delete assignments (non-nullable foreign key)
+            db.prepare('DELETE FROM assignments WHERE caller_id = ?').run(userId);
+
+            // 3. Delete calls history (non-nullable foreign key)
+            // Note: This permanently removes call history for this user.
+            db.prepare('DELETE FROM calls WHERE caller_id = ?').run(userId);
+
+            // 4. Finally delete the user
+            db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+        });
+
+        deleteUser(id);
 
         return NextResponse.json({ success: true });
     } catch (error) {

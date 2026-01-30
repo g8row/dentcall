@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
     }
 }
 
-// Update campaign (mark complete, update name, etc.)
+// Update campaign (mark complete, update name, dates, regions, cities, etc.)
 export async function PATCH(request: NextRequest) {
     const session = await getSession();
 
@@ -116,7 +116,8 @@ export async function PATCH(request: NextRequest) {
     }
 
     try {
-        const { id, name, status } = await request.json();
+        const body = await request.json();
+        const { id, name, description, start_date, end_date, target_regions, target_cities, status, reschedule } = body;
 
         if (!id) {
             return NextResponse.json({ error: 'Campaign id is required' }, { status: 400 });
@@ -137,6 +138,37 @@ export async function PATCH(request: NextRequest) {
             params.push(name);
         }
 
+        if (description !== undefined) {
+            updates.push('description = ?');
+            params.push(description);
+        }
+
+        const datesChanged = (start_date !== undefined && start_date !== existing.start_date) ||
+            (end_date !== undefined && end_date !== existing.end_date);
+
+        if (start_date !== undefined) {
+            updates.push('start_date = ?');
+            params.push(start_date);
+        }
+
+        if (end_date !== undefined) {
+            updates.push('end_date = ?');
+            params.push(end_date);
+        }
+
+        if (target_regions !== undefined) {
+            // Expect JSON string or array
+            const regionsValue = Array.isArray(target_regions) ? JSON.stringify(target_regions) : target_regions;
+            updates.push('target_regions = ?');
+            params.push(regionsValue);
+        }
+
+        if (target_cities !== undefined) {
+            const citiesValue = Array.isArray(target_cities) ? JSON.stringify(target_cities) : target_cities;
+            updates.push('target_cities = ?');
+            params.push(citiesValue);
+        }
+
         if (status !== undefined) {
             updates.push('status = ?');
             params.push(status);
@@ -155,7 +187,55 @@ export async function PATCH(request: NextRequest) {
         params.push(id);
         db.prepare(`UPDATE campaigns SET ${updates.join(', ')} WHERE id = ?`).run(...params);
 
-        return NextResponse.json({ success: true, message: 'Campaign updated' });
+        // Reschedule assignments if dates changed and reschedule flag is true
+        let rescheduledCount = 0;
+        if (datesChanged && reschedule) {
+            const newStartDate = start_date || existing.start_date;
+            const newEndDate = end_date || existing.end_date;
+
+            // Get all dentist IDs and caller IDs from existing assignments
+            const existingAssignments = db.prepare(`
+                SELECT DISTINCT dentist_id, caller_id FROM assignments WHERE campaign_id = ?
+            `).all(id) as { dentist_id: string; caller_id: string }[];
+
+            if (existingAssignments.length > 0) {
+                // Delete old assignments for this campaign
+                db.prepare(`DELETE FROM assignments WHERE campaign_id = ?`).run(id);
+
+                // Calculate new date range
+                const startD = new Date(newStartDate);
+                const endD = new Date(newEndDate);
+                const days: string[] = [];
+                for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+                    days.push(d.toISOString().split('T')[0]);
+                }
+
+                if (days.length > 0) {
+                    // Redistribute assignments across new days
+                    const insertStmt = db.prepare(`
+                        INSERT INTO assignments (id, date, dentist_id, caller_id, campaign_id, completed)
+                        VALUES (?, ?, ?, ?, ?, 0)
+                    `);
+
+                    let dayIndex = 0;
+                    for (const assignment of existingAssignments) {
+                        const assignDate = days[dayIndex % days.length];
+                        const newId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                        insertStmt.run(newId, assignDate, assignment.dentist_id, assignment.caller_id, id);
+                        dayIndex++;
+                        rescheduledCount++;
+                    }
+                }
+            }
+        }
+
+        return NextResponse.json({
+            success: true,
+            message: datesChanged && reschedule
+                ? `Campaign updated. ${rescheduledCount} assignments rescheduled.`
+                : 'Campaign updated',
+            rescheduled: rescheduledCount
+        });
     } catch (error) {
         console.error('Update campaign error:', error);
         return NextResponse.json({ error: 'Failed to update campaign' }, { status: 500 });

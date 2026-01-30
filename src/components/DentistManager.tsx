@@ -40,6 +40,11 @@ export default function DentistManager() {
     // Backup State
     const [backingUp, setBackingUp] = useState(false);
 
+    // Bulk selection state
+    const [selectedDentists, setSelectedDentists] = useState<string[]>([]);
+    const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
+    const [bulkAssignUser, setBulkAssignUser] = useState<string>('');
+
     // Filter Updates - Debounced
     useEffect(() => {
         const timeoutId = setTimeout(() => {
@@ -79,6 +84,7 @@ export default function DentistManager() {
                 setDentists(data.dentists);
                 setTotalPages(data.pagination.totalPages);
                 setPage(pageNum);
+                // Selections persist across pages
             }
         } catch (err) {
             console.error('Failed to fetch dentists', err);
@@ -151,6 +157,57 @@ export default function DentistManager() {
         }
     };
 
+    // Bulk Actions Logic
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const currentPageIds = dentists.map(d => d.id);
+        if (e.target.checked) {
+            // Add current page dentists to selection (preserving others)
+            setSelectedDentists(prev => [...new Set([...prev, ...currentPageIds])]);
+        } else {
+            // Remove current page dentists from selection (preserving others)
+            setSelectedDentists(prev => prev.filter(id => !currentPageIds.includes(id)));
+        }
+    };
+
+    const handleSelectOne = (id: string) => {
+        if (selectedDentists.includes(id)) {
+            setSelectedDentists(selectedDentists.filter(d => d !== id));
+        } else {
+            setSelectedDentists([...selectedDentists, id]);
+        }
+    };
+
+    const handleBulkAssign = async () => {
+        if (!confirm(`Assign ${selectedDentists.length} dentists to ${bulkAssignUser ? users.find(u => u.id === bulkAssignUser)?.username : 'None'}?`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/dentists/bulk-assign', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    dentistIds: selectedDentists,
+                    callerId: bulkAssignUser || null,
+                }),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                alert(data.message);
+                setShowBulkAssignModal(false);
+                setSelectedDentists([]);
+                fetchData(page);
+            } else {
+                alert('Failed to update dentists');
+            }
+        } catch (error) {
+            console.error(error);
+            alert('Error updating dentists');
+        }
+    };
+
+
     return (
         <div className="space-y-6">
             <EditDentistModal
@@ -159,6 +216,44 @@ export default function DentistManager() {
                 dentist={editingDentist}
                 onSuccess={handleEditSuccess}
             />
+
+            {/* Bulk Assign Modal */}
+            {showBulkAssignModal && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[110] backdrop-blur-sm p-4">
+                    <div className="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-sm p-6 shadow-2xl">
+                        <h3 className="text-xl font-bold text-white mb-4">Bulk Assign Caller</h3>
+                        <p className="text-slate-400 mb-4">
+                            Select a caller to assign to <strong>{selectedDentists.length}</strong> dentists.
+                        </p>
+                        <select
+                            value={bulkAssignUser}
+                            onChange={(e) => setBulkAssignUser(e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white mb-6"
+                        >
+                            <option value="">-- No Preferred Caller --</option>
+                            {users.map(u => (
+                                <option key={u.id} value={u.id}>
+                                    {u.display_name || u.username}
+                                </option>
+                            ))}
+                        </select>
+                        <div className="flex justify-end gap-2">
+                            <button
+                                onClick={() => setShowBulkAssignModal(false)}
+                                className="px-4 py-2 text-slate-400 hover:text-white"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleBulkAssign}
+                                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg"
+                            >
+                                Apply
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700">
                 <div className="flex-1 max-w-md">
@@ -204,11 +299,39 @@ export default function DentistManager() {
                 </div>
             </div>
 
+            {/* Bulk Actions Toolbar */}
+            {selectedDentists.length > 0 && (
+                <div className="bg-emerald-900/30 border border-emerald-500/30 p-4 rounded-xl flex items-center justify-between animate-in slide-in-from-top-2 fade-in">
+                    <div className="flex items-center gap-3">
+                        <span className="bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                            {selectedDentists.length}
+                        </span>
+                        <span className="text-emerald-300 font-medium">Selected</span>
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setShowBulkAssignModal(true)}
+                            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition"
+                        >
+                            Assign Caller
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                         <thead className="bg-slate-900/50 text-slate-400 font-medium">
                             <tr>
+                                <th className="px-6 py-4 w-10">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500"
+                                        checked={dentists.length > 0 && dentists.every(d => selectedDentists.includes(d.id))}
+                                        onChange={handleSelectAll}
+                                    />
+                                </th>
                                 <th className="px-6 py-4">Facility Name</th>
                                 <th className="px-6 py-4">Region/City</th>
                                 <th className="px-6 py-4">Manager</th>
@@ -220,13 +343,13 @@ export default function DentistManager() {
                         <tbody className="divide-y divide-slate-700/50">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                                    <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
                                         Loading records...
                                     </td>
                                 </tr>
                             ) : dentists.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                                    <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
                                         No dentists found matching your search.
                                     </td>
                                 </tr>
@@ -245,7 +368,15 @@ export default function DentistManager() {
                                     }
 
                                     return (
-                                        <tr key={dentist.id} className="hover:bg-slate-700/30 transition">
+                                        <tr key={dentist.id} className={`hover:bg-slate-700/30 transition ${selectedDentists.includes(dentist.id) ? 'bg-emerald-500/5' : ''}`}>
+                                            <td className="px-6 py-4">
+                                                <input
+                                                    type="checkbox"
+                                                    className="rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500"
+                                                    checked={selectedDentists.includes(dentist.id)}
+                                                    onChange={() => handleSelectOne(dentist.id)}
+                                                />
+                                            </td>
                                             <td className="px-6 py-4 font-medium text-white">
                                                 {dentist.facility_name}
                                             </td>

@@ -82,12 +82,14 @@ export default function AdminDashboard() {
         isOpen: boolean;
         title: string;
         message: string;
+        confirmText?: string;
         onConfirm: () => void;
         isDestructive?: boolean;
     }>({
         isOpen: false,
         title: '',
         message: '',
+        confirmText: undefined,
         onConfirm: () => { },
         isDestructive: false,
     });
@@ -121,6 +123,10 @@ export default function AdminDashboard() {
     // Success notification state
     const [successNotification, setSuccessNotification] = useState<string | null>(null);
 
+
+    // Transfer state
+    const [transferSourceUser, setTransferSourceUser] = useState<string | null>(null);
+    const [transferTargetUser, setTransferTargetUser] = useState<string>('');
 
     const loadCalendarData = useCallback(async () => {
         try {
@@ -233,23 +239,26 @@ export default function AdminDashboard() {
         checkAuth();
     }, [router]);
 
+    const fetchUsers = useCallback(async () => {
+        try {
+            const res = await fetch('/api/users');
+            const data = await res.json();
+            setUsers(data.users || []);
+        } catch (error) {
+            console.error('Failed to fetch users', error);
+        }
+    }, []);
+
     useEffect(() => {
         if (!user) return;
 
         const loadData = async () => {
-            const [usersRes, regionsRes] = await Promise.all([
-                fetch('/api/users'),
-                fetch('/api/dentists/locations'),
-            ]);
-
-            const usersData = await usersRes.json();
-            const regionsData = await regionsRes.json();
-
-            setUsers(usersData.users || []);
-            setRegions(regionsData.regions || []);
+            await fetchUsers();
+            const res = await fetch('/api/dentists/locations');
+            const data = await res.json();
+            setRegions(data.regions || []);
         };
 
-        loadData();
         loadData();
         loadCalendarData();
 
@@ -262,7 +271,7 @@ export default function AdminDashboard() {
         }, 60000);
 
         return () => clearInterval(refreshInterval);
-    }, [user, loadCalendarData, showScheduleModal, activeTab]);
+    }, [user, loadCalendarData, showScheduleModal, activeTab, fetchUsers]);
 
     const handleLogout = async () => {
         await fetch('/api/auth/logout', { method: 'POST' });
@@ -300,7 +309,7 @@ export default function AdminDashboard() {
         setConfirmModal({
             isOpen: true,
             title: 'Delete User',
-            message: 'Are you sure you want to delete this user? This action cannot be undone.',
+            message: 'Are you sure you want to delete this user? WARNING: This will PERMANENTLY DELETE all their call history and assignments. This action cannot be undone.',
             isDestructive: true,
             onConfirm: async () => {
                 await fetch(`/api/users/${userId}`, { method: 'DELETE' });
@@ -308,6 +317,62 @@ export default function AdminDashboard() {
                 closeConfirmModal();
             }
         });
+    };
+
+    const handleDeactivateUser = async (userId: string) => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'Deactivate User',
+            message: 'Are you sure? This will scramble their password/username, remove future assignments, and KEEP history. The user will be renamed to "Inactive...".',
+            isDestructive: true,
+            confirmText: 'Deactivate',
+            onConfirm: async () => {
+                try {
+                    const res = await fetch('/api/users/deactivate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId }),
+                    });
+                    if (res.ok) {
+                        setSuccessNotification('User deactivated successfully');
+                        fetchUsers();
+                        closeConfirmModal();
+                    } else {
+                        alert('Failed to deactivate user');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert('Error deactivating user');
+                }
+            }
+        });
+    };
+
+    const handleTransferDentists = async () => {
+        if (!transferSourceUser || !transferTargetUser) return;
+
+        try {
+            const res = await fetch('/api/users/transfer-dentists', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fromUserId: transferSourceUser,
+                    toUserId: transferTargetUser,
+                }),
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                setSuccessNotification(data.message);
+                setTransferSourceUser(null);
+                setTransferTargetUser('');
+            } else {
+                alert(data.error || 'Transfer failed');
+            }
+        } catch (error) {
+            console.error(error);
+            alert('Transfer error');
+        }
     };
 
     const handleDeleteHistory = async (type: 'calls' | 'assignments' | 'all') => {
@@ -1061,14 +1126,29 @@ export default function AdminDashboard() {
                                                             ) : (
                                                                 <>
                                                                     <button
+                                                                        onClick={() => setTransferSourceUser(u.id)}
+                                                                        className="text-indigo-400 hover:text-indigo-300 text-xs uppercase font-bold tracking-wider"
+                                                                        title="Transfer preferred dentists"
+                                                                    >
+                                                                        Transfer
+                                                                    </button>
+                                                                    <button
                                                                         onClick={() => setEditingUser(u)}
                                                                         className="text-slate-400 hover:text-white"
                                                                     >
                                                                         Edit
                                                                     </button>
                                                                     <button
+                                                                        onClick={() => handleDeactivateUser(u.id)}
+                                                                        className="text-amber-500 hover:text-amber-400"
+                                                                        title="Deactivate (Keep History)"
+                                                                    >
+                                                                        Deactivate
+                                                                    </button>
+                                                                    <button
                                                                         onClick={() => handleDeleteUser(u.id)}
                                                                         className="text-red-400 hover:text-red-300"
+                                                                        title="Delete Permanently"
                                                                     >
                                                                         Delete
                                                                     </button>
@@ -1425,6 +1505,48 @@ export default function AdminDashboard() {
                                     📥 Експорт
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Add Transfer Modal */}
+            {transferSourceUser && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[110] backdrop-blur-sm p-4">
+                    <div className="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-sm p-6 shadow-2xl">
+                        <h3 className="text-xl font-bold text-white mb-4">Transfer Dentists</h3>
+                        <p className="text-slate-400 mb-4">
+                            Move all preferred dentists from <strong>{users.find(u => u.id === transferSourceUser)?.username}</strong> to:
+                        </p>
+                        <select
+                            value={transferTargetUser}
+                            onChange={(e) => setTransferTargetUser(e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white mb-6"
+                        >
+                            <option value="">-- Select Target User --</option>
+                            {users.filter(u => u.id !== transferSourceUser).map(u => (
+                                <option key={u.id} value={u.id}>
+                                    {u.display_name || u.username}
+                                </option>
+                            ))}
+                        </select>
+                        <div className="flex justify-end gap-2">
+                            <button
+                                onClick={() => {
+                                    setTransferSourceUser(null);
+                                    setTransferTargetUser('');
+                                }}
+                                className="px-4 py-2 text-slate-400 hover:text-white"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleTransferDentists}
+                                disabled={!transferTargetUser}
+                                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg disabled:opacity-50"
+                            >
+                                Transfer
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
         const locationParams: (string | number)[] = [];
 
         // Check for virtual regions
-        let virtualUserRegion: string | null = null;
+        const virtualUserIds: string[] = [];
         let isImplantsRegion = false;
         const geoRegions: string[] = [];
 
@@ -261,7 +261,15 @@ export async function POST(request: NextRequest) {
             for (const region of regions) {
                 if (region.startsWith('★ Клиенти ')) {
                     // Extract username from virtual region name
-                    virtualUserRegion = region.replace('★ Клиенти ', '').trim();
+                    const username = region.replace('★ Клиенти ', '').trim();
+                    // Look up by display_name first, then username
+                    const targetUser = db.prepare(`
+                        SELECT id FROM users 
+                        WHERE display_name = ? OR username = ?
+                    `).get(username, username) as { id: string } | undefined;
+                    if (targetUser) {
+                        virtualUserIds.push(targetUser.id);
+                    }
                 } else if (region === '🦷 Импланти') {
                     isImplantsRegion = true;
                 } else {
@@ -270,36 +278,57 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Build filter based on region types
-        if (virtualUserRegion) {
-            // Get the user ID from username
-            const targetUser = db.prepare(`SELECT id FROM users WHERE username = ?`).get(virtualUserRegion) as { id: string } | undefined;
-            if (targetUser) {
-                // Check if the selected callers include the preferred caller
-                // If not, this is an incompatibility - the virtual region should only be scheduled to its owner
-                if (caller_ids && caller_ids.length > 0 && !caller_ids.includes(targetUser.id)) {
+        // Build combined filter using OR logic for multiple region types
+        const regionConditions: string[] = [];
+
+        // Add virtual user regions (preferred_caller_id = user_id)
+        if (virtualUserIds.length > 0) {
+            // Validate that the selected callers include ALL selected user regions
+            if (caller_ids && caller_ids.length > 0) {
+                const missingCallers = virtualUserIds.filter(id => !caller_ids.includes(id));
+                if (missingCallers.length > 0) {
+                    // Get the names of missing callers
+                    const missingNames = db.prepare(`
+                        SELECT COALESCE(display_name, username) as name FROM users WHERE id IN (${missingCallers.map(() => '?').join(',')})
+                    `).all(...missingCallers) as { name: string }[];
                     return NextResponse.json({
                         success: false,
-                        error: `Несъвместимост: регионът "★ Клиенти ${virtualUserRegion}" може да се разпределя само на ${virtualUserRegion}`,
+                        error: `Несъвместимост: регионите "★ Клиенти" изискват съответните обаждащи се да бъдат избрани: ${missingNames.map(n => n.name).join(', ')}`,
                     }, { status: 400 });
                 }
-                locationFilter += ` AND d.preferred_caller_id = ?`;
-                locationParams.push(targetUser.id);
-            } else {
-                return NextResponse.json({
-                    success: false,
-                    error: `User "${virtualUserRegion}" not found`,
-                }, { status: 400 });
             }
-        } else if (isImplantsRegion) {
-            locationFilter += ` AND d.wants_implants = 1`;
-            // For implants region, exclude dentists with preferred caller - they should be scheduled through their user region
-            locationFilter += ` AND (d.preferred_caller_id IS NULL)`;
-        } else if (geoRegions.length > 0) {
-            locationFilter += ` AND d.region IN (${geoRegions.map(() => '?').join(',')})`;
-            locationParams.push(...geoRegions);
-            // For geographic regions, exclude dentists with preferred caller - they should be scheduled through their user region
-            locationFilter += ` AND (d.preferred_caller_id IS NULL)`;
+            regionConditions.push(`d.preferred_caller_id IN (${virtualUserIds.map(() => '?').join(',')})`);
+            locationParams.push(...virtualUserIds);
+        }
+
+        // Add implants region
+        if (isImplantsRegion) {
+            // For implants, include dentists who want implants AND don't have a preferred caller
+            // (unless that caller is also in virtualUserIds)
+            if (virtualUserIds.length > 0) {
+                regionConditions.push(`(d.wants_implants = 1 AND (d.preferred_caller_id IS NULL OR d.preferred_caller_id IN (${virtualUserIds.map(() => '?').join(',')})))`);
+                locationParams.push(...virtualUserIds);
+            } else {
+                regionConditions.push(`(d.wants_implants = 1 AND d.preferred_caller_id IS NULL)`);
+            }
+        }
+
+        // Add geographic regions
+        if (geoRegions.length > 0) {
+            // For geographic regions, include dentists in those regions who don't have a preferred caller
+            // (unless that caller is also in virtualUserIds which means we explicitly selected them)
+            if (virtualUserIds.length > 0) {
+                regionConditions.push(`(d.region IN (${geoRegions.map(() => '?').join(',')}) AND (d.preferred_caller_id IS NULL OR d.preferred_caller_id IN (${virtualUserIds.map(() => '?').join(',')})))`);
+                locationParams.push(...geoRegions, ...virtualUserIds);
+            } else {
+                regionConditions.push(`(d.region IN (${geoRegions.map(() => '?').join(',')}) AND d.preferred_caller_id IS NULL)`);
+                locationParams.push(...geoRegions);
+            }
+        }
+
+        // Combine all conditions with OR
+        if (regionConditions.length > 0) {
+            locationFilter = ` AND (${regionConditions.join(' OR ')})`;
         }
 
         if (cities && cities.length > 0) {
