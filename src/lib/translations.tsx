@@ -155,6 +155,14 @@ const translations = {
         mark_complete: 'Mark Complete',
         status_cancelled: 'Cancelled',
 
+        // User Management
+        delete_user_title: 'Delete User',
+        delete_user_msg: 'Are you sure you want to delete this user? WARNING: This will PERMANENTLY DELETE all their call history and assignments. This action cannot be undone.',
+        deactivate_user_title: 'Deactivate User',
+        deactivate_user_msg: 'Are you sure? This will scramble their password/username, remove future assignments, and KEEP history. The user will be renamed to "Inactive...".',
+        deactivate_btn: 'Deactivate',
+        transfer_dentists: 'Transfer Dentists',
+
         // Export
         export_dentists: 'Export All Dentists',
         export_calls: 'Export Call Logs',
@@ -507,6 +515,14 @@ const translations = {
         delete_forever: 'Изтрий Завинаги',
         mark_complete: 'Приключи',
         status_cancelled: 'Отказана',
+
+        // User Management
+        delete_user_title: 'Изтриване на Потребител',
+        delete_user_msg: 'Сигурни ли сте? ВНИМАНИЕ: Това ще ИЗТРИЕ НАПЪЛНО цялата му история на обаждания и задачи. Действието е необратимо.',
+        deactivate_user_title: 'Деактивиране на Потребител',
+        deactivate_user_msg: 'Сигурни ли сте? Това ще промени паролата/потребителското му име, ще премахне бъдещите задачи, но ще ЗАПАЗИ историята. Потребителят ще бъде преименуван на "Неактивен...".',
+        deactivate_btn: 'Деактивирай',
+        transfer_dentists: 'Прехвърли Зъболекари',
 
         // Export
         export_dentists: 'Експорт Зъболекари',

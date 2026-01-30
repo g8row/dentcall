@@ -308,8 +308,8 @@ export default function AdminDashboard() {
     const handleDeleteUser = async (userId: string) => {
         setConfirmModal({
             isOpen: true,
-            title: 'Delete User',
-            message: 'Are you sure you want to delete this user? WARNING: This will PERMANENTLY DELETE all their call history and assignments. This action cannot be undone.',
+            title: t('delete_user_title'),
+            message: t('delete_user_msg'),
             isDestructive: true,
             onConfirm: async () => {
                 await fetch(`/api/users/${userId}`, { method: 'DELETE' });
@@ -322,10 +322,10 @@ export default function AdminDashboard() {
     const handleDeactivateUser = async (userId: string) => {
         setConfirmModal({
             isOpen: true,
-            title: 'Deactivate User',
-            message: 'Are you sure? This will scramble their password/username, remove future assignments, and KEEP history. The user will be renamed to "Inactive...".',
+            title: t('deactivate_user_title'),
+            message: t('deactivate_user_msg'),
             isDestructive: true,
-            confirmText: 'Deactivate',
+            confirmText: t('deactivate_btn'),
             onConfirm: async () => {
                 try {
                     const res = await fetch('/api/users/deactivate', {
