@@ -81,30 +81,63 @@ export async function DELETE(
             );
         }
 
+        // Check if user exists
+        const user = db.prepare('SELECT id, username FROM users WHERE id = ?').get(id) as { id: string; username: string } | undefined;
+        if (!user) {
+            return NextResponse.json(
+                { error: 'User not found' },
+                { status: 404 }
+            );
+        }
+
         // Use a transaction to ensure all related data is cleaned up
-        // or the operation is rolled back entirely
-        const deleteUser = db.transaction((userId) => {
-            // 1. Unassign from dentists (nullable foreign key)
-            db.prepare('UPDATE dentists SET preferred_caller_id = NULL WHERE preferred_caller_id = ?').run(userId);
+        // Temporarily disable foreign keys to avoid constraint issues
+        const deleteUser = db.transaction((userId: string) => {
+            // Disable foreign key checks temporarily
+            db.pragma('foreign_keys = OFF');
 
-            // 2. Delete assignments (non-nullable foreign key)
-            db.prepare('DELETE FROM assignments WHERE caller_id = ?').run(userId);
+            try {
+                // 1. Update campaigns that reference this caller in target_callers JSON
+                const campaigns = db.prepare('SELECT id, target_callers FROM campaigns WHERE target_callers IS NOT NULL').all() as { id: string; target_callers: string }[];
+                for (const campaign of campaigns) {
+                    try {
+                        const callers = JSON.parse(campaign.target_callers) as string[];
+                        const filtered = callers.filter((cid: string) => cid !== userId);
+                        if (filtered.length !== callers.length) {
+                            db.prepare('UPDATE campaigns SET target_callers = ? WHERE id = ?').run(
+                                filtered.length > 0 ? JSON.stringify(filtered) : null,
+                                campaign.id
+                            );
+                        }
+                    } catch {
+                        // Skip if JSON parsing fails
+                    }
+                }
 
-            // 3. Delete calls history (non-nullable foreign key)
-            // Note: This permanently removes call history for this user.
-            db.prepare('DELETE FROM calls WHERE caller_id = ?').run(userId);
+                // 2. Unassign from dentists (nullable foreign key)
+                db.prepare('UPDATE dentists SET preferred_caller_id = NULL WHERE preferred_caller_id = ?').run(userId);
 
-            // 4. Finally delete the user
-            db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+                // 3. Delete assignments (non-nullable foreign key)
+                db.prepare('DELETE FROM assignments WHERE caller_id = ?').run(userId);
+
+                // 4. Delete calls history (non-nullable foreign key)
+                db.prepare('DELETE FROM calls WHERE caller_id = ?').run(userId);
+
+                // 5. Finally delete the user
+                db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+            } finally {
+                // Re-enable foreign key checks
+                db.pragma('foreign_keys = ON');
+            }
         });
 
         deleteUser(id);
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, message: `User ${user.username} deleted successfully` });
     } catch (error) {
         console.error('Delete user error:', error);
         return NextResponse.json(
-            { error: 'Internal server error' },
+            { error: 'Failed to delete user. Please try again or contact support.' },
             { status: 500 }
         );
     }
