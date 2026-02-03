@@ -221,6 +221,12 @@ const translations = {
         success_rate: 'Success Rate',
         outcome_date: 'Date',
 
+        // Save Draft
+        save_draft: 'Save Draft',
+        draft_saved: 'Draft saved!',
+        save_draft_error: 'Failed to save draft',
+        save_draft_hint: 'Saves note without logging call',
+
         // Regions
         region_coverage: 'Region Coverage',
         region: 'Region',
@@ -604,6 +610,12 @@ const translations = {
         pending_callbacks: 'Чакащи Обратни Обаждания',
         success_rate: 'Успеваемост',
         outcome_date: 'Дата',
+
+        // Save Draft
+        save_draft: 'Запази Чернова',
+        draft_saved: 'Черновата е записана!',
+        save_draft_error: 'Грешка при запис',
+        save_draft_hint: 'Запазва бележка без да отчита обаждане',
 
         // Regions
         region_coverage: 'Покритие по Области',

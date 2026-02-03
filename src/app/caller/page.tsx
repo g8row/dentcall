@@ -528,7 +528,7 @@ export default function CallerDashboard() {
 
                                             {/* Save Draft Button (Only for new calls) */}
                                             {!isEditing && (
-                                                <div className="flex justify-end">
+                                                <div className="mt-4">
                                                     <button
                                                         onClick={async () => {
                                                             const note = notes[assignment.dentist_id];
@@ -547,15 +547,15 @@ export default function CallerDashboard() {
                                                             });
 
                                                             if (res.ok) {
-                                                                alert('Draft saved!');
+                                                                alert(t('draft_saved'));
                                                             } else {
-                                                                alert('Failed to save draft');
+                                                                alert(t('save_draft_error'));
                                                             }
                                                         }}
-                                                        className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 mt-2"
-                                                        title="Saves note without logging call"
+                                                        className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 text-lg"
+                                                        title={t('save_draft_hint')}
                                                     >
-                                                        <span>💾</span> Save Draft
+                                                        <span className="text-2xl">💾</span> {t('save_draft')}
                                                     </button>
                                                 </div>
                                             )}
