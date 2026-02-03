@@ -80,6 +80,13 @@ export async function POST(request: NextRequest) {
       VALUES (?, ?, ?, ?, ?)
     `).run(id, dentist_id, session.user.id, outcome, notes || null);
 
+        // Update assignment notes so the "sticky note" stays in sync
+        db.prepare(`
+      UPDATE assignments 
+      SET notes = ? 
+      WHERE dentist_id = ? AND completed = 0
+    `).run(notes || null, dentist_id);
+
         // Mark assignment as completed if exists (regardless of date or caller)
         // If we called them, any pending assignment for this dentist is considered done
         db.prepare(`
