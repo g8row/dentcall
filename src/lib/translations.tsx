@@ -283,6 +283,9 @@ const translations = {
         reset_password_button: 'Set Password',
         passwords_not_match: 'Passwords do not match',
         password_too_short: 'Password must be at least 6 characters',
+        reset_btn: 'Reset',
+        reset_password_confirm: 'Are you sure you want to reset the password for {user}? It will be set to "password".',
+        password_reset_success: 'Password reset successfully',
         // Tutorial
         tutorial_title: 'Admin Dashboard Guide',
         tutorial_description: 'Welcome to your cold calling command center. Here is how to use it proficiently.',
@@ -663,6 +666,9 @@ const translations = {
         reset_password_button: 'Задай Парола',
         passwords_not_match: 'Паролите не съвпадат',
         password_too_short: 'Паролата трябва да е поне 6 символа',
+        reset_btn: 'Нулирай',
+        reset_password_confirm: 'Сигурни ли сте, че искате да нулирате паролата за {user}? Тя ще бъде зададена като "password".',
+        password_reset_success: 'Паролата е нулирана успешно',
 
         // Scheduling Logic Modal
         sl_title: 'Логика на График и Обаждания',

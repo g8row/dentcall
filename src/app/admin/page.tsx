@@ -348,6 +348,52 @@ export default function AdminDashboard() {
         });
     };
 
+    const handleResetPassword = async (userId: string, username: string) => {
+        setConfirmModal({
+            isOpen: true,
+            title: t('reset_password_title') || 'Reset Password',
+            message: (t('reset_password_confirm') || 'Are you sure you want to reset the password for {user}? It will be set to "password".').replace('{user}', username),
+            confirmText: t('reset_btn') || 'Reset',
+            isDestructive: true,
+            onConfirm: async () => {
+                try {
+                    const res = await fetch(`/api/users/${userId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ password: 'password' }),
+                    });
+
+                    if (res.ok) {
+                        setSuccessNotification(t('password_reset_success') || 'Password reset successfully');
+                        closeConfirmModal();
+                    } else {
+                        alert(t('error_generic') || 'An error occurred');
+                    }
+                } catch (error) {
+                    console.error('Reset password error:', error);
+                    alert(t('error_generic') || 'An error occurred');
+                }
+            }
+        });
+    };
+
+    const handleCleanupDuplicates = async () => {
+        if (!confirm('This will merge duplicate dentists (e.g. "РЗОК X" -> "X"). This includes merging history and assignments. Are you sure?')) return;
+
+        try {
+            const res = await fetch('/api/admin/cleanup-duplicates', { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                alert(`Cleanup Complete:\nMerged: ${data.merged}\nRenamed: ${data.fixed}`);
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error cleaning up duplicates');
+        }
+    };
+
     const handleTransferDentists = async () => {
         if (!transferSourceUser || !transferTargetUser) return;
 
@@ -1152,6 +1198,13 @@ export default function AdminDashboard() {
                                                                     >
                                                                         Delete
                                                                     </button>
+                                                                    <button
+                                                                        onClick={() => handleResetPassword(u.id, u.username)}
+                                                                        className="text-orange-400 hover:text-orange-300"
+                                                                        title="Reset Password to 'password'"
+                                                                    >
+                                                                        Reset Pwd
+                                                                    </button>
                                                                 </>
                                                             )}
                                                         </div>
@@ -1248,6 +1301,15 @@ export default function AdminDashboard() {
                                     <div className="text-purple-400 text-2xl mb-2">📊</div>
                                     <h3 className="font-semibold mb-1">{t('export_stats')}</h3>
                                     <p className="text-sm text-slate-400">{t('export_stats_desc')}</p>
+                                </button>
+
+                                <button
+                                    onClick={handleCleanupDuplicates}
+                                    className="p-6 bg-slate-800 rounded-xl border border-slate-700 hover:border-amber-500 transition text-left"
+                                >
+                                    <div className="text-amber-400 text-2xl mb-2">🧹</div>
+                                    <h3 className="font-semibold mb-1">Cleanup</h3>
+                                    <p className="text-sm text-slate-400">Merge "РЗОК" Duplicates</p>
                                 </button>
                             </div>
 
