@@ -33,8 +33,12 @@ ENV NODE_ENV=production
 ENV PORT=4000
 ENV HOSTNAME="0.0.0.0"
 
-# Install only runtime dependencies for SQLite
-RUN apk add --no-cache sqlite-libs
+# Install only runtime dependencies for SQLite and Timezone
+RUN apk add --no-cache sqlite-libs tzdata
+
+# Set Timezone
+ENV TZ=Europe/Sofia
+
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \
