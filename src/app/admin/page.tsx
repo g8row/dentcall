@@ -505,11 +505,16 @@ export default function AdminDashboard() {
 
     const handleExport = (type: string) => {
         if (type === 'calls') {
-            // Show date picker modal for calls export
             setShowExportCallsModal(true);
             return;
         }
-        window.open(`/api/export?type=${type}`, '_blank');
+        // Use anchor tag to prevent popup blocker
+        const link = document.createElement('a');
+        link.href = `/api/export?type=${type}`;
+        link.download = `${type}_export.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const handleExportCalls = () => {
@@ -520,7 +525,14 @@ export default function AdminDashboard() {
         if (exportCallsEndDate) {
             url += `&endDate=${exportCallsEndDate}`;
         }
-        window.open(url, '_blank');
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'calls_export.xlsx';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
         setShowExportCallsModal(false);
         setExportCallsStartDate('');
         setExportCallsEndDate('');

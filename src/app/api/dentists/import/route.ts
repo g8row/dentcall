@@ -125,8 +125,8 @@ export async function POST(request: NextRequest) {
 
             for (const dentist of dentists) {
                 try {
-                    const facilityName = dentist.name;
-                    const region = dentist.region_filter;
+                    const facilityName = dentist.name || dentist.facility_name;
+                    const region = dentist.region || dentist.region_filter || '';
 
                     const manager = dentist.manager || null;
                     const phones = JSON.stringify(dentist.phones || []);

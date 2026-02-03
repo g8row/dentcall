@@ -14,61 +14,59 @@ export async function POST(request: NextRequest) {
 
         // Transaction for safety
         const cleanupTx = db.transaction(() => {
-            // 1. Find all dentists with 'РЗОК' in region
-            const rzokRecords = db.prepare("SELECT * FROM dentists WHERE region LIKE 'РЗОК%'").all() as any[];
+            // 1. Find all duplicates by facility_name
+            const duplicates = db.prepare(`
+                SELECT facility_name, COUNT(*) as count 
+                FROM dentists 
+                GROUP BY facility_name 
+                HAVING count > 1
+            `).all() as { facility_name: string }[];
 
-            for (const row of rzokRecords) {
-                const originalRegion = row.region;
-                // Remove 'РЗОК' prefix (case insensitive)
-                const cleanRegion = originalRegion.replace(/^РЗОК\s+/i, '').trim();
-                const name = row.facility_name;
+            for (const dup of duplicates) {
+                const records = db.prepare(
+                    "SELECT * FROM dentists WHERE facility_name = ? ORDER BY created_at DESC"
+                ).all(dup.facility_name) as any[];
 
-                if (!cleanRegion) continue;
+                if (records.length < 2) continue;
 
-                // Check for clean record
-                const cleanRecord = db.prepare(
-                    "SELECT * FROM dentists WHERE facility_name = ? AND region = ?"
-                ).get(name, cleanRegion) as any;
+                // Strategy: Keep the NEWEST one (likely the clean import), merge others into it
+                // Exception: If newest is 'dirty' (has ОФИЯ) and older is clean?
+                // But we just imported clean data, so newest should be clean.
 
-                if (cleanRecord) {
-                    // MERGE
-                    // Transfer preferred caller if needed
-                    if (!cleanRecord.preferred_caller_id && row.preferred_caller_id) {
-                        db.prepare("UPDATE dentists SET preferred_caller_id = ? WHERE id = ?")
-                            .run(row.preferred_caller_id, cleanRecord.id);
-                    }
+                // Let's verify 'cleanliness' just in case.
+                // Prefer record WITHOUT 'ОФИЯ' in cities_served
+                let survivorIndex = 0;
+                const cleanRecordIndex = records.findIndex(r => !r.cities_served?.includes('ОФИЯ') && !r.cities_served?.includes('\\"ОФИЯ\\"'));
 
-                    // Merge phones
-                    try {
-                        const cleanPhones = JSON.parse(cleanRecord.phones || '[]');
-                        const dupPhones = JSON.parse(row.phones || '[]');
-                        const combined = Array.from(new Set([...cleanPhones, ...dupPhones]));
+                if (cleanRecordIndex !== -1) {
+                    survivorIndex = cleanRecordIndex;
+                }
 
-                        if (combined.length > cleanPhones.length) {
-                            db.prepare("UPDATE dentists SET phones = ? WHERE id = ?")
-                                .run(JSON.stringify(combined), cleanRecord.id);
-                        }
-                    } catch (e) {
-                        console.error('Error parsing phones during merge', e);
-                    }
+                const survivor = records[survivorIndex];
+                const victims = records.filter((_, idx) => idx !== survivorIndex);
 
-                    // Merge History (update assignments/calls to point to clean record)
-                    // Update calls
+                for (const victim of victims) {
+                    // Merge History
                     db.prepare("UPDATE calls SET dentist_id = ? WHERE dentist_id = ?")
-                        .run(cleanRecord.id, row.id);
+                        .run(survivor.id, victim.id);
 
-                    // Update assignments
                     db.prepare("UPDATE assignments SET dentist_id = ? WHERE dentist_id = ?")
-                        .run(cleanRecord.id, row.id);
+                        .run(survivor.id, victim.id);
 
-                    // Delete duplicate
-                    db.prepare("DELETE FROM dentists WHERE id = ?").run(row.id);
+                    // Merge Phones (if victim has phones survivor doesn't)
+                    try {
+                        const sPhones = JSON.parse(survivor.phones || '[]');
+                        const vPhones = JSON.parse(victim.phones || '[]');
+                        const combined = Array.from(new Set([...sPhones, ...vPhones]));
+                        if (combined.length > sPhones.length) {
+                            db.prepare("UPDATE dentists SET phones = ? WHERE id = ?")
+                                .run(JSON.stringify(combined), survivor.id);
+                        }
+                    } catch (e) { }
+
+                    // Delete victim
+                    db.prepare("DELETE FROM dentists WHERE id = ?").run(victim.id);
                     mergedCount++;
-                } else {
-                    // RENAME
-                    db.prepare("UPDATE dentists SET region = ? WHERE id = ?")
-                        .run(cleanRegion, row.id);
-                    fixedCount++;
                 }
             }
         });

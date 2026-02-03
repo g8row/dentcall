@@ -94,5 +94,7 @@
 ## 📋 Data Quality Notes
 
 - ~~**Missing Translations**: Some UI strings (e.g., "Preferred", "Manager:", "Cancel") are hardcoded in English in `caller/page.tsx`.~~ ✅ Fixed in commit `7d1816e`
-- **Cities Parsing**: Multiple code paths handle `cities_served` as JSON array, semicolon-separated string, or plain string. Needs standardization.
+- ~~**Cities Parsing**: Multiple code paths handle `cities_served` as JSON array, semicolon-separated string, or plain string. Needs standardization.~~ ✅ FIXED: Standardized to JSON array; "C" prefix corruption resolved.
 - **Date Handling**: Mix of local dates and UTC. Server uses SQLite `datetime('now')` (UTC), but UI displays may assume local time.
+- **Data Integrity**: Database now fully synchronized with `master_dentists.json`. Duplicates resolved using strict `facility_name` matching.
+

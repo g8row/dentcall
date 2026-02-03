@@ -3,6 +3,8 @@ import db from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import * as XLSX from 'xlsx';
 
+export const dynamic = 'force-dynamic';
+
 // Export data as Excel
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -160,18 +162,18 @@ export async function GET(request: NextRequest) {
     XLSX.utils.book_append_sheet(wb, ws, 'Data');
 
     // Write to buffer with explicit options
-    const uint8Array = XLSX.write(wb, {
-      type: 'array',
+    const buffer = XLSX.write(wb, {
+      type: 'buffer',
       bookType: 'xlsx',
       compression: true
     });
 
-    return new NextResponse(uint8Array, {
+    return new NextResponse(buffer, {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Length': String(uint8Array.length),
+        'Content-Length': String(buffer.length),
       },
     });
   } catch (error) {

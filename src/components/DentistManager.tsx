@@ -266,7 +266,48 @@ export default function DentistManager() {
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
+
                 <div className="flex gap-2">
+                    <button
+                        onClick={async () => {
+                            if (!confirm('This will delete old "dirty" records and merge their history into the clean new records. Proceed?')) return;
+                            try {
+                                const res = await fetch('/api/admin/cleanup-duplicates', { method: 'POST' });
+                                const data = await res.json();
+                                if (res.ok) {
+                                    alert(`Cleanup Complete:\nMerged: ${data.merged}\nRenamed: ${data.fixed}`);
+                                    fetchData(1);
+                                } else {
+                                    alert('Error: ' + (data.error || 'Unknown error'));
+                                }
+                            } catch (e) {
+                                alert('Error cleaning up duplicates');
+                            }
+                        }}
+                        className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition"
+                    >
+                        Cleanup Duplicates
+                    </button>
+                    <button
+                        onClick={async () => {
+                            if (confirm(t('confirm_clear_all_dentists') || 'Are you sure you want to delete ALL dentists? This cannot be undone.')) {
+                                try {
+                                    const res = await fetch('/api/dentists/clear', { method: 'POST' });
+                                    if (res.ok) {
+                                        alert('All dentists cleared successfully.');
+                                        fetchData(1);
+                                    } else {
+                                        alert('Failed to clear dentists');
+                                    }
+                                } catch (e) {
+                                    alert('Error clearing dentists');
+                                }
+                            }
+                        }}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition"
+                    >
+                        Clear All
+                    </button>
                     <button
                         onClick={() => handleBackup('server')}
                         disabled={backingUp}
@@ -301,24 +342,26 @@ export default function DentistManager() {
             </div>
 
             {/* Bulk Actions Toolbar */}
-            {selectedDentists.length > 0 && (
-                <div className="bg-emerald-900/30 border border-emerald-500/30 p-4 rounded-xl flex items-center justify-between animate-in slide-in-from-top-2 fade-in">
-                    <div className="flex items-center gap-3">
-                        <span className="bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                            {selectedDentists.length}
-                        </span>
-                        <span className="text-emerald-300 font-medium">Selected</span>
+            {
+                selectedDentists.length > 0 && (
+                    <div className="bg-emerald-900/30 border border-emerald-500/30 p-4 rounded-xl flex items-center justify-between animate-in slide-in-from-top-2 fade-in">
+                        <div className="flex items-center gap-3">
+                            <span className="bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                {selectedDentists.length}
+                            </span>
+                            <span className="text-emerald-300 font-medium">Selected</span>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setShowBulkAssignModal(true)}
+                                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition"
+                            >
+                                Assign Caller
+                            </button>
+                        </div>
                     </div>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setShowBulkAssignModal(true)}
-                            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition"
-                        >
-                            Assign Caller
-                        </button>
-                    </div>
-                </div>
-            )}
+                )
+            }
 
             <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
                 <div className="overflow-x-auto">
@@ -451,6 +494,6 @@ export default function DentistManager() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
