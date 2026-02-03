@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
 
         const assignments = db.prepare(`
     SELECT a.*, d.facility_name, d.region, d.phones, d.manager, d.cities_served, d.preferred_caller_id, d.wants_implants,
-           COALESCE(u.display_name, u.username) as caller_name
+           COALESCE(u.display_name, u.username) as caller_name, a.notes
     FROM assignments a
     JOIN dentists d ON a.dentist_id = d.id
     JOIN users u ON a.caller_id = u.id
@@ -600,4 +600,38 @@ export async function DELETE(request: NextRequest) {
         success: true,
         deleted: result.changes
     });
+}
+
+// Update assignment (e.g. save notes)
+export async function PATCH(request: NextRequest) {
+    const session = await getSession();
+    if (!session) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    try {
+        const { id, notes } = await request.json();
+
+        if (!id) {
+            return NextResponse.json({ error: 'Assignment ID required' }, { status: 400 });
+        }
+
+        // Verify ownership (or admin)
+        const assignment = db.prepare('SELECT caller_id FROM assignments WHERE id = ?').get(id) as { caller_id: string } | undefined;
+
+        if (!assignment) {
+            return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
+        }
+
+        if (session.role !== 'ADMIN' && assignment.caller_id !== session.user.id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+        }
+
+        db.prepare('UPDATE assignments SET notes = ? WHERE id = ?').run(notes, id);
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Update assignment error:', error);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
 }

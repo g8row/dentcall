@@ -25,6 +25,7 @@ interface Assignment {
     completed: number;
     preferred_caller_id?: string;
     wants_implants?: number;
+    notes?: string;
 }
 
 interface CallLog {
@@ -76,12 +77,18 @@ export default function CallerDashboard() {
         setAssignments(assignmentsData.assignments || []);
         setTodayCalls(callsData.calls || []);
 
-        // Initialize implant status from assignments
+        // Initialize implant status and draft notes from assignments
         const implants: Record<string, boolean> = {};
+        const draftNotes: Record<string, string> = {};
+
         (assignmentsData.assignments || []).forEach((a: Assignment) => {
             implants[a.dentist_id] = !!a.wants_implants;
+            if (a.notes) {
+                draftNotes[a.dentist_id] = a.notes;
+            }
         });
         setImplantStatus(implants);
+        setNotes(prev => ({ ...prev, ...draftNotes }));
     }, [today]);
 
     useEffect(() => {
@@ -517,6 +524,40 @@ export default function CallerDashboard() {
                                                 >
                                                     {t('cancel')}
                                                 </button>
+                                            )}
+
+                                            {/* Save Draft Button (Only for new calls) */}
+                                            {!isEditing && (
+                                                <div className="flex justify-end">
+                                                    <button
+                                                        onClick={async () => {
+                                                            const note = notes[assignment.dentist_id];
+                                                            if (note === undefined) return; // No change
+
+                                                            // Find assignment ID
+                                                            // We have assignment object in scope
+
+                                                            const res = await fetch('/api/assignments', {
+                                                                method: 'PATCH',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({
+                                                                    id: assignment.id,
+                                                                    notes: note
+                                                                })
+                                                            });
+
+                                                            if (res.ok) {
+                                                                alert('Draft saved!');
+                                                            } else {
+                                                                alert('Failed to save draft');
+                                                            }
+                                                        }}
+                                                        className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 mt-2"
+                                                        title="Saves note without logging call"
+                                                    >
+                                                        <span>💾</span> Save Draft
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
                                     ) : null}

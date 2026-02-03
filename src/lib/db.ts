@@ -140,6 +140,14 @@ function getDb(): Database.Database {
   // Create index for preferred_caller_id (safe to run after migration ensures column exists)
   _db.exec(`CREATE INDEX IF NOT EXISTS idx_dentists_preferred_caller ON dentists(preferred_caller_id)`);
 
+  // Migration: Add notes column to assignments if it doesn't exist (for drafts)
+  const assignmentColumnsForNotes = _db.pragma('table_info(assignments)') as Array<{ name: string }>;
+  const hasNotes = assignmentColumnsForNotes.some(col => col.name === 'notes');
+  if (!hasNotes) {
+    _db.exec(`ALTER TABLE assignments ADD COLUMN notes TEXT`);
+    logger.migration('Added notes column to assignments table');
+  }
+
   // Migration: Add wants_implants column to dentists if it doesn't exist
   const hasWantsImplants = dentistColumns.some(col => col.name === 'wants_implants');
   if (!hasWantsImplants) {
