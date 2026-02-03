@@ -480,33 +480,31 @@ export default function CallerDashboard() {
                                                     rows={2}
                                                 />
                                                 {/* Save Draft Button - Below Notes */}
-                                                {!isEditing && (
-                                                    <button
-                                                        onClick={async () => {
-                                                            const note = notes[assignment.dentist_id];
-                                                            if (note === undefined) return;
+                                                <button
+                                                    onClick={async () => {
+                                                        const note = notes[assignment.dentist_id];
+                                                        if (note === undefined) return;
 
-                                                            const res = await fetch('/api/assignments', {
-                                                                method: 'PATCH',
-                                                                headers: { 'Content-Type': 'application/json' },
-                                                                body: JSON.stringify({
-                                                                    id: assignment.id,
-                                                                    notes: note
-                                                                })
-                                                            });
+                                                        const res = await fetch('/api/assignments', {
+                                                            method: 'PATCH',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({
+                                                                id: assignment.id,
+                                                                notes: note
+                                                            })
+                                                        });
 
-                                                            if (res.ok) {
-                                                                alert(t('draft_saved'));
-                                                            } else {
-                                                                alert(t('save_draft_error'));
-                                                            }
-                                                        }}
-                                                        className="w-full mt-2 py-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-200 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-                                                        title={t('save_draft_hint')}
-                                                    >
-                                                        <span>💾</span> {t('save_draft')}
-                                                    </button>
-                                                )}
+                                                        if (res.ok) {
+                                                            alert(t('draft_saved'));
+                                                        } else {
+                                                            alert(t('save_draft_error'));
+                                                        }
+                                                    }}
+                                                    className="w-full mt-2 py-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-200 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                                                    title={t('save_draft_hint')}
+                                                >
+                                                    <span>💾</span> {t('save_draft')}
+                                                </button>
                                             </div>
 
                                             {/* Outcome Buttons - Centered */}
