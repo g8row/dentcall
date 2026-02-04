@@ -438,11 +438,11 @@ export default function CallerDashboard() {
                                     >
                                         <div className="flex items-start justify-between gap-4">
                                             <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-2 flex-wrap">
                                                     {isCompleted && outcomeStyle && (
                                                         <span className="text-lg">{OUTCOMES.find(o => o.value === call?.outcome)?.emoji}</span>
                                                     )}
-                                                    <h3 className={`font-semibold truncate ${isCompleted ? outcomeStyle?.text : 'text-white'}`}>
+                                                    <h3 className={`font-semibold ${isCompleted ? outcomeStyle?.text : 'text-white'}`}>
                                                         {assignment.facility_name}
                                                     </h3>
                                                     {assignment.preferred_caller_id === user?.id && (
@@ -473,7 +473,7 @@ export default function CallerDashboard() {
                                                                 type="text"
                                                                 value={eikValue}
                                                                 onChange={(e) => setEikValue(e.target.value)}
-                                                                className="px-2 py-1 text-sm bg-slate-900 border border-slate-600 rounded text-white w-32"
+                                                                className="px-2 py-1 text-base bg-slate-900 border border-slate-600 rounded text-white w-32"
                                                                 placeholder="EIK/BULSTAT"
                                                                 autoFocus
                                                             />
@@ -511,7 +511,7 @@ export default function CallerDashboard() {
                                                                     setEditingEikId(assignment.dentist_id);
                                                                     setEikValue(assignment.eik || '');
                                                                 }}
-                                                                className="opacity-0 group-hover/eik:opacity-100 text-slate-500 hover:text-cyan-400 transition-opacity p-1"
+                                                                className="text-slate-500 hover:text-cyan-400 transition-colors p-1"
                                                                 title="Edit EIK"
                                                             >
                                                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
