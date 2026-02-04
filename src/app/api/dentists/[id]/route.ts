@@ -7,55 +7,79 @@ export async function PATCH(
     context: { params: Promise<{ id: string }> }
 ) {
     const session = await getSession();
-    if (!session || session.role !== 'ADMIN') {
+    if (!session) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Role check logic
+    const isAdmin = session.role === 'ADMIN';
 
     const { id } = await context.params;
 
     try {
         const body = await request.json();
 
-        // Remove ID from body if present to avoid changing primary key
+        // Remove ID/created_at
         delete body.id;
         delete body.created_at;
+
+        // Validation for CALLER role
+        if (!isAdmin) {
+            // Callers can ONLY update: eik
+            const allowedFields = ['eik'];
+            const attemptedFields = Object.keys(body);
+            const hasForbiddenFields = attemptedFields.some(f => !allowedFields.includes(f));
+
+            if (hasForbiddenFields) {
+                return NextResponse.json({
+                    error: 'Unauthorized: Callers can only update EIK'
+                }, { status: 403 });
+            }
+        }
 
         const setClauses: string[] = [];
         const params: any[] = [];
 
         // Handle specific fields
         if (body.facility_name !== undefined) {
+            if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
             setClauses.push('facility_name = ?');
             params.push(body.facility_name);
         }
         if (body.region !== undefined) {
+            if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
             setClauses.push('region = ?');
             params.push(body.region);
         }
         if (body.cities_served !== undefined) {
+            if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
             setClauses.push('cities_served = ?');
-            params.push(body.cities_served); // Expecting string or managing it
+            params.push(body.cities_served);
         }
-        // Also support 'city' alias for cities_served since modals use that
+        // Also support 'city' alias
         if (body.city !== undefined) {
+            if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
             setClauses.push('cities_served = ?');
             params.push(body.city);
         }
         if (body.manager !== undefined) {
+            if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
             setClauses.push('manager = ?');
             params.push(body.manager);
         }
         if (body.preferred_caller_id !== undefined) {
+            if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
             setClauses.push('preferred_caller_id = ?');
             params.push(body.preferred_caller_id || null);
         }
         if (body.phones !== undefined) {
+            if (!isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
             setClauses.push('phones = ?');
-            // Ensure phones is stored as JSON string
             const phonesVal = Array.isArray(body.phones) ? JSON.stringify(body.phones) : body.phones;
             params.push(phonesVal);
         }
         if (body.eik !== undefined) {
+            // Allowed for everyone
             setClauses.push('eik = ?');
             params.push(body.eik || null);
         }

@@ -25,7 +25,12 @@ interface Assignment {
     completed: number;
     preferred_caller_id?: string;
     wants_implants?: number;
+    eik?: string;
     notes?: string;
+    last_outcome?: string;
+    last_call_id?: string;
+    call_notes?: string;
+    last_called_at?: string;
 }
 
 interface CallLog {
@@ -63,6 +68,18 @@ export default function CallerDashboard() {
     const [newPhone, setNewPhone] = useState('');
     const [implantStatus, setImplantStatus] = useState<Record<string, boolean>>({});
 
+    // History & Tabs State
+    const [viewMode, setViewMode] = useState<'todo' | 'history'>('todo');
+    const [historyAssignments, setHistoryAssignments] = useState<Assignment[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [showStats, setShowStats] = useState(true);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [statsExpanded, setStatsExpanded] = useState(true);
+
+    // EIK Editing State
+    const [editingEikId, setEditingEikId] = useState<string | null>(null);
+    const [eikValue, setEikValue] = useState('');
+
     const today = format(new Date(), 'yyyy-MM-dd');
 
     const loadData = useCallback(async () => {
@@ -90,6 +107,38 @@ export default function CallerDashboard() {
         setImplantStatus(implants);
         setNotes(prev => ({ ...prev, ...draftNotes }));
     }, [today]);
+
+    const loadHistory = useCallback(async () => {
+        setHistoryLoading(true);
+        try {
+            const res = await fetch('/api/assignments?mode=history');
+            const data = await res.json();
+            setHistoryAssignments(data.assignments || []);
+
+            // Should we update notes/implants from history too? 
+            // Maybe not essential for the list view, but helpful if they edit
+            const implants: Record<string, boolean> = { ...implantStatus };
+            const draftNotes: Record<string, string> = { ...notes };
+
+            (data.assignments || []).forEach((a: Assignment) => {
+                implants[a.dentist_id] = !!a.wants_implants;
+                if (a.notes) {
+                    draftNotes[a.dentist_id] = a.notes;
+                }
+            });
+            setImplantStatus(implants);
+            setNotes(prev => ({ ...prev, ...draftNotes }));
+
+        } finally {
+            setHistoryLoading(false);
+        }
+    }, [implantStatus, notes]); // Depend on current state to merge
+
+    useEffect(() => {
+        if (viewMode === 'history') {
+            loadHistory();
+        }
+    }, [viewMode]);
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -211,8 +260,49 @@ export default function CallerDashboard() {
         order_taken: uniqueCalls.filter(c => c.outcome === 'ORDER_TAKEN').length,
     };
 
+    const handleUpdateEik = async (dentistId: string) => {
+        try {
+            const response = await fetch(`/api/dentists/${dentistId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ eik: eikValue }),
+            });
+
+            if (!response.ok) throw new Error('Failed to update EIK');
+
+            // Update local state
+            setAssignments(prev => prev.map(a =>
+                a.dentist_id === dentistId ? { ...a, eik: eikValue } : a
+            ));
+            setHistoryAssignments(prev => prev.map(a =>
+                a.dentist_id === dentistId ? { ...a, eik: eikValue } : a
+            ));
+            setEditingEikId(null);
+            setEikValue('');
+        } catch (error) {
+            console.error('Error updating EIK:', error);
+            alert('Failed to update EIK');
+        }
+    };
+
     // Get calls by dentist ID (already have the map)
     const callsByDentist = latestCallsMap;
+
+    // Search Filtering for History
+    const filteredHistory = historyAssignments.filter(a => {
+        if (!searchTerm) return true;
+        const term = searchTerm.toLowerCase();
+        const phones = a.phones.join(' ');
+        return (
+            a.facility_name.toLowerCase().includes(term) ||
+            phones.includes(term) ||
+            (a.manager && a.manager.toLowerCase().includes(term))
+        );
+    });
+
+    const currentList = viewMode === 'todo' ? assignments : filteredHistory;
+
+
 
     if (loading) {
         return (
@@ -269,17 +359,53 @@ export default function CallerDashboard() {
             </header >
 
             {/* Main Content */}
-            < main className="max-w-2xl mx-auto px-4 py-6 space-y-4" >
+            <main className="max-w-2xl mx-auto px-4 py-6 space-y-4 pb-32">
+                {viewMode === 'history' && (
+                    <div className="sticky top-[73px] z-40 pb-2">
+                        <div className="relative">
+                            <input
+                                type="text"
+                                placeholder={t('search_placeholder')}
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full px-4 py-3 bg-slate-800/90 backdrop-blur border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+                            />
+                            <div className="absolute right-3 top-3 text-slate-400">
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {
-                    assignments.length === 0 ? (
+                    historyLoading && viewMode === 'history' ? (
                         <div className="text-center py-12">
-                            <div className="text-6xl mb-4">📋</div>
-                            <h2 className="text-xl font-semibold mb-2">{t('no_assignments')}</h2>
-                            <p className="text-slate-400">{t('check_back_later')}</p>
+                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-500 mx-auto mb-2"></div>
+                            <p className="text-slate-400">{t('loading_history')}</p>
+                        </div>
+                    ) : currentList.length === 0 ? (
+                        <div className="text-center py-12">
+                            <div className="text-6xl mb-4">{viewMode === 'todo' ? '📋' : '🕰️'}</div>
+                            <h2 className="text-xl font-semibold mb-2">{viewMode === 'todo' ? t('no_assignments') : t('no_history')}</h2>
+                            <p className="text-slate-400">{viewMode === 'todo' ? t('check_back_later') : t('no_history_desc')}</p>
                         </div>
                     ) : (
-                        assignments.map((assignment) => {
-                            const call = callsByDentist.get(assignment.dentist_id);
+                        currentList.map((assignment) => {
+                            let call = callsByDentist.get(assignment.dentist_id);
+
+                            // If no call today, but we have history, use that
+                            if (!call && assignment.last_call_id) {
+                                call = {
+                                    id: assignment.last_call_id,
+                                    dentist_id: assignment.dentist_id,
+                                    outcome: assignment.last_outcome!,
+                                    notes: assignment.call_notes || null,
+                                    called_at: assignment.last_called_at!
+                                };
+                            }
+
                             const isCompleted = !!call;
                             const isActive = activeCard === assignment.dentist_id;
                             const isEditing = editingCall === call?.id;
@@ -340,6 +466,61 @@ export default function CallerDashboard() {
                                                         {t('manager_prefix')} {assignment.manager}
                                                     </p>
                                                 )}
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    {editingEikId === assignment.dentist_id ? (
+                                                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                                            <input
+                                                                type="text"
+                                                                value={eikValue}
+                                                                onChange={(e) => setEikValue(e.target.value)}
+                                                                className="px-2 py-1 text-sm bg-slate-900 border border-slate-600 rounded text-white w-32"
+                                                                placeholder="EIK/BULSTAT"
+                                                                autoFocus
+                                                            />
+                                                            <button
+                                                                onClick={() => handleUpdateEik(assignment.dentist_id)}
+                                                                className="text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 p-1 rounded"
+                                                            >
+                                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                                </svg>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setEditingEikId(null)}
+                                                                className="text-slate-400 hover:text-slate-300 bg-slate-700/50 p-1 rounded"
+                                                            >
+                                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 group/eik">
+                                                            {assignment.eik ? (
+                                                                <p className="text-sm text-slate-400 font-mono">
+                                                                    EIK: {assignment.eik}
+                                                                </p>
+                                                            ) : (
+                                                                <p className="text-sm text-slate-600 font-mono italic">
+                                                                    No EIK
+                                                                </p>
+                                                            )}
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setEditingEikId(assignment.dentist_id);
+                                                                    setEikValue(assignment.eik || '');
+                                                                }}
+                                                                className="opacity-0 group-hover/eik:opacity-100 text-slate-500 hover:text-cyan-400 transition-opacity p-1"
+                                                                title="Edit EIK"
+                                                            >
+                                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                             {isCompleted && call && (
                                                 <div className={`px-3 py-1.5 rounded-lg text-xs font-bold ${outcomeStyle?.bg} ${outcomeStyle?.text} border ${outcomeStyle?.border}`}>
@@ -560,32 +741,77 @@ export default function CallerDashboard() {
                 }
             </main>
 
-            {/* Bottom Stats Bar (Mobile) - With Outcome Colors */}
-            <div className="fixed bottom-0 left-0 right-0 bg-slate-800/95 backdrop-blur-lg border-t border-slate-700 p-4">
-                <div className="max-w-2xl mx-auto flex justify-around text-center">
-                    <div>
-                        <div className="text-xl font-bold text-emerald-400">{outcomeStats.interested}</div>
-                        <div className="text-xs text-emerald-400/70">✅ {t('interested')}</div>
-                    </div>
-                    <div>
-                        <div className="text-xl font-bold text-red-400">{outcomeStats.not_interested}</div>
-                        <div className="text-xs text-red-400/70">❌ {t('not_int_short')}</div>
-                    </div>
-                    <div>
-                        <div className="text-xl font-bold text-slate-400">{outcomeStats.no_answer}</div>
-                        <div className="text-xs text-slate-500">📵 {t('no_ans_short')}</div>
-                    </div>
-                    <div>
-                        <div className="text-xl font-bold text-amber-400">{outcomeStats.callback}</div>
-                        <div className="text-xs text-amber-400/70">📞 {t('callback')}</div>
-                    </div>
-                    <div>
-                        <div className="text-xl font-bold text-cyan-400">{outcomeStats.order_taken}</div>
-                        <div className="text-xs text-cyan-400/70">📦 {t('order_taken')}</div>
-                    </div>
-                    <div>
-                        <div className="text-xl font-bold text-purple-400">{Object.values(implantStatus).filter(Boolean).length}</div>
-                        <div className="text-xs text-purple-400/70">🦷 {t('implants_label')}</div>
+            {/* Bottom Tabs & Stats */}
+            <div className="fixed bottom-0 left-0 right-0 z-50">
+                {/* Stats Toggle Button */}
+                <div className="flex justify-center -mb-px">
+                    <button
+                        onClick={() => setShowStats(!showStats)}
+                        className="bg-slate-800 border-t border-x border-slate-700 rounded-t-lg px-4 py-1 text-slate-400 hover:text-white text-xs font-bold uppercase tracking-wider shadow-lg flex items-center gap-1"
+                    >
+                        <span>{showStats ? '▼' : '▲'}</span>
+                        <span>{t('stats')}</span>
+                    </button>
+                </div>
+
+                <div className="bg-slate-900/95 backdrop-blur-lg border-t border-slate-700 shadow-[0_-5px_20px_rgba(0,0,0,0.3)]">
+                    {/* Stats Row */}
+                    {showStats && (
+                        <div className="grid grid-cols-6 gap-0 py-3 border-b border-slate-800">
+                            <div className="text-center border-r border-slate-800 last:border-0">
+                                <div className="text-lg font-bold text-emerald-400 leading-none">{outcomeStats.interested}</div>
+                                <div className="text-[10px] text-emerald-400/70 mt-1 font-medium">{t('interested')}</div>
+                            </div>
+                            <div className="text-center border-r border-slate-800 last:border-0">
+                                <div className="text-lg font-bold text-red-400 leading-none">{outcomeStats.not_interested}</div>
+                                <div className="text-[10px] text-red-400/70 mt-1 font-medium">{t('not_int_short')}</div>
+                            </div>
+                            <div className="text-center border-r border-slate-800 last:border-0">
+                                <div className="text-lg font-bold text-slate-400 leading-none">{outcomeStats.no_answer}</div>
+                                <div className="text-[10px] text-slate-500 mt-1 font-medium">{t('no_ans_short')}</div>
+                            </div>
+                            <div className="text-center border-r border-slate-800 last:border-0">
+                                <div className="text-lg font-bold text-amber-400 leading-none">{outcomeStats.callback}</div>
+                                <div className="text-[10px] text-amber-400/70 mt-1 font-medium">{t('callback')}</div>
+                            </div>
+                            <div className="text-center border-r border-slate-800 last:border-0">
+                                <div className="text-lg font-bold text-cyan-400 leading-none">{outcomeStats.order_taken}</div>
+                                <div className="text-[10px] text-cyan-400/70 mt-1 font-medium">{t('order_taken')}</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-lg font-bold text-purple-400 leading-none">{Object.values(implantStatus).filter(Boolean).length}</div>
+                                <div className="text-[10px] text-purple-400/70 mt-1 font-medium">{t('implants_label')}</div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Tab Switcher */}
+                    <div className="flex">
+                        <button
+                            onClick={() => {
+                                setViewMode('todo');
+                                loadData(); // Refresh todo list
+                            }}
+                            className={`flex-1 py-4 text-sm font-bold uppercase tracking-wide transition-colors flex items-center justify-center gap-2 ${viewMode === 'todo'
+                                ? 'bg-slate-800 text-white shadow-inner border-t-2 border-emerald-500'
+                                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
+                                }`}
+                        >
+                            <span className="text-lg">📋</span>
+                            {t('today_calls')}
+                            {assignments.length > 0 && <span className="px-2 py-0.5 bg-slate-700 rounded-full text-xs ml-1">{assignments.filter(a => !callsByDentist.has(a.dentist_id)).length}</span>}
+                        </button>
+                        <div className="w-px bg-slate-800"></div>
+                        <button
+                            onClick={() => setViewMode('history')}
+                            className={`flex-1 py-4 text-sm font-bold uppercase tracking-wide transition-colors flex items-center justify-center gap-2 ${viewMode === 'history'
+                                ? 'bg-slate-800 text-white shadow-inner border-t-2 border-cyan-500'
+                                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
+                                }`}
+                        >
+                            <span className="text-lg">🕰️</span>
+                            {t('history_log')}
+                        </button>
                     </div>
                 </div>
             </div >

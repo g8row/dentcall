@@ -106,8 +106,8 @@ export async function POST(request: NextRequest) {
                 INSERT INTO dentists (
                     id, facility_name, region, manager, phones, 
                     services, cities_served, locations, staff, 
-                    staff_count, preferred_caller_id, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    staff_count, preferred_caller_id, eik, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
             `);
 
             const updateStmt = db.prepare(`
@@ -119,7 +119,8 @@ export async function POST(request: NextRequest) {
                     locations = ?,
                     staff = ?,
                     staff_count = ?,
-                    preferred_caller_id = ?
+                    preferred_caller_id = ?,
+                    eik = ?
                 WHERE id = ?
             `);
 
@@ -127,6 +128,7 @@ export async function POST(request: NextRequest) {
                 try {
                     const facilityName = dentist.name || dentist.facility_name;
                     const region = dentist.region || dentist.region_filter || '';
+                    const eik = dentist.eik || null;
 
                     const manager = dentist.manager || null;
                     const phones = JSON.stringify(dentist.phones || []);
@@ -168,6 +170,7 @@ export async function POST(request: NextRequest) {
                             staff,
                             staff_count,
                             preferred_caller_id,
+                            eik,
                             existing.id
                         );
                         updated++;
@@ -184,7 +187,8 @@ export async function POST(request: NextRequest) {
                             locations,
                             staff,
                             staff_count,
-                            preferred_caller_id
+                            preferred_caller_id,
+                            eik
                         );
                         inserted++;
                     }

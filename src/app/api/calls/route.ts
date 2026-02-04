@@ -76,8 +76,8 @@ export async function POST(request: NextRequest) {
         const id = generateId();
 
         db.prepare(`
-      INSERT INTO calls (id, dentist_id, caller_id, outcome, notes)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO calls (id, dentist_id, caller_id, outcome, notes, called_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))
     `).run(id, dentist_id, session.user.id, outcome, notes || null);
 
         // Update assignment notes so the "sticky note" stays in sync

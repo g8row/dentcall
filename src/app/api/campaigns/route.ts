@@ -174,9 +174,9 @@ export async function PATCH(request: NextRequest) {
             params.push(status);
 
             if (status === 'COMPLETED') {
-                updates.push('completed_at = datetime("now")');
+                updates.push('completed_at = datetime("now", "localtime")');
             } else if (status === 'CANCELLED') {
-                updates.push('cancelled_at = datetime("now")');
+                updates.push('cancelled_at = datetime("now", "localtime")');
             }
         }
 
@@ -279,7 +279,7 @@ export async function DELETE(request: NextRequest) {
             // Soft delete: just mark as cancelled
             db.prepare(`
                 UPDATE campaigns 
-                SET status = 'CANCELLED', cancelled_at = datetime('now')
+                SET status = 'CANCELLED', cancelled_at = datetime('now', 'localtime')
                 WHERE id = ?
             `).run(campaignId);
 

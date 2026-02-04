@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
           d.phones as "Phones",
           d.cities_served as "Cities",
           d.staff_count as "Staff Count",
+          d.eik as "EIK",
           u.username as "Preferred Caller",
           (SELECT outcome FROM calls WHERE dentist_id = d.id ORDER BY called_at DESC LIMIT 1) as "Last Outcome",
           (SELECT called_at FROM calls WHERE dentist_id = d.id ORDER BY called_at DESC LIMIT 1) as "Last Called"

@@ -131,6 +131,13 @@ const translations = {
         not_int_short: 'Not Int.',
         no_ans_short: 'No Ans.',
         add_phone_title: 'Add phone number',
+        search_placeholder: 'Search by name, phone or manager...',
+        loading_history: 'Loading history...',
+        no_history: 'No history found',
+        no_history_desc: 'You haven\'t made any calls yet or no matches found.',
+        stats: 'Stats',
+        today_calls: 'Today',
+        history_log: 'History',
 
         // Add Dentist Modal
         add_dentist_title: 'Add New Dentist',
@@ -521,6 +528,13 @@ const translations = {
         not_int_short: 'Незаинт.',
         no_ans_short: 'Без отг.',
         add_phone_title: 'Добави телефон',
+        search_placeholder: 'Търсене по име, телефон или управител...',
+        loading_history: 'Зареждане на история...',
+        no_history: 'Няма намерена история',
+        no_history_desc: 'Все още не сте правили обаждания или няма съвпадения.',
+        stats: 'Статистика',
+        today_calls: 'Днес',
+        history_log: 'История',
 
         // Add Dentist Modal
         add_dentist_title: 'Добави Нов Зъболекар',

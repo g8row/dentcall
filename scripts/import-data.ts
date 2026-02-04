@@ -4,7 +4,7 @@ import fs from 'fs';
 import { randomUUID } from 'crypto';
 
 const DB_PATH = path.join(process.cwd(), 'data', 'cold-caller.db');
-const JSON_PATH = path.join(process.cwd(), 'dentists_cleaned.json');
+const JSON_PATH = path.join(process.cwd(), 'master_dentists.json');
 
 // Ensure data directory exists
 const dataDir = path.dirname(DB_PATH);
@@ -106,8 +106,8 @@ async function importData() {
 
   // Insert statement
   const insertStmt = db.prepare(`
-    INSERT INTO dentists (id, facility_name, region, manager, phones, services, cities_served, locations, staff, staff_count, preferred_caller_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO dentists (id, facility_name, region, manager, phones, services, cities_served, locations, staff, staff_count, preferred_caller_id, eik)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   let inserted = 0;
@@ -119,7 +119,8 @@ async function importData() {
       try {
         // Map fields
         const facility_name = d.name;
-        const region = d.region_filter;
+        const region = d.region || d.region_filter;
+        const eik = d.eik || null;
 
         if (!facility_name || !region) {
           console.warn(`Skipping invalid record: Missing name or region`);
@@ -168,7 +169,8 @@ async function importData() {
           locations,
           staff,
           staff_count,
-          preferred_caller_id
+          preferred_caller_id,
+          eik
         );
         inserted++;
 

@@ -45,6 +45,11 @@ export async function GET(request: NextRequest) {
         let whereClause = '1=1';
         const params: string[] = [];
 
+        let sortBy = 'a.date, d.region, d.facility_name';
+        if (searchParams.get('mode') === 'history') {
+            sortBy = 'a.date DESC, d.region, d.facility_name';
+        }
+
         if (date) {
             whereClause += ' AND DATE(a.date) = ?';
             params.push(date);
@@ -76,14 +81,21 @@ export async function GET(request: NextRequest) {
         }
 
         const assignments = db.prepare(`
-    SELECT a.*, d.facility_name, d.region, d.phones, d.manager, d.cities_served, d.preferred_caller_id, d.wants_implants,
-           COALESCE(u.display_name, u.username) as caller_name, a.notes
+    WITH LatestCalls AS (
+        SELECT id, dentist_id, outcome, notes, called_at,
+               ROW_NUMBER() OVER (PARTITION BY dentist_id ORDER BY called_at DESC) as rn
+        FROM calls
+    )
+    SELECT a.*, d.facility_name, d.region, d.phones, d.manager, d.cities_served, d.preferred_caller_id, d.wants_implants, d.eik,
+           COALESCE(u.display_name, u.username) as caller_name, a.notes,
+           lc.outcome as last_outcome, lc.id as last_call_id, lc.notes as call_notes, lc.called_at as last_called_at
     FROM assignments a
     JOIN dentists d ON a.dentist_id = d.id
     JOIN users u ON a.caller_id = u.id
     LEFT JOIN campaigns c ON a.campaign_id = c.id
+    LEFT JOIN LatestCalls lc ON a.dentist_id = lc.dentist_id AND lc.rn = 1
     WHERE ${whereClause} AND (c.status IS NULL OR c.status != 'CANCELLED')
-    ORDER BY a.date, d.region, d.facility_name
+    ORDER BY ${sortBy}
   `).all(...params);
 
         // Enrich with last call data
@@ -422,8 +434,8 @@ export async function POST(request: NextRequest) {
         const campaignDisplayName = campaign_name || `Campaign ${start_date}${start_date !== end_date ? ` - ${end_date}` : ''}`;
 
         db.prepare(`
-            INSERT INTO campaigns (id, name, start_date, end_date, target_regions, target_cities, target_callers, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
+            INSERT INTO campaigns (id, name, start_date, end_date, target_regions, target_cities, target_callers, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', datetime('now', 'localtime'))
         `).run(
             campaignId,
             campaignDisplayName,
@@ -461,8 +473,8 @@ export async function POST(request: NextRequest) {
         const usedDentistIds = new Set<string>();
 
         const insertStmt = db.prepare(`
-      INSERT OR IGNORE INTO assignments (id, date, dentist_id, caller_id, campaign_id)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT OR IGNORE INTO assignments (id, date, dentist_id, caller_id, campaign_id, created_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))
     `);
 
         const insertMany = db.transaction(() => {
