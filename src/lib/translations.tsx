@@ -160,6 +160,7 @@ const translations = {
         delete_campaign_msg: 'This action cannot be undone!',
         delete_forever: 'Delete Forever',
         mark_complete: 'Mark Complete',
+        duplicate: 'Duplicate',
         status_cancelled: 'Cancelled',
 
         // User Management
@@ -557,6 +558,7 @@ const translations = {
         delete_campaign_msg: 'Това действие е необратимо!',
         delete_forever: 'Изтрий Завинаги',
         mark_complete: 'Приключи',
+        duplicate: 'Дублирай',
         status_cancelled: 'Отказана',
 
         // User Management

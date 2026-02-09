@@ -39,11 +39,15 @@ interface Caller {
 interface SchedulePlannerProps {
     onClose: () => void;
     onScheduleGenerated: () => void;
+    // Optional props for campaign duplication - pre-fill selections
+    initialRegions?: string[];
+    initialCities?: string[];
+    initialCallers?: string[];
 }
 
 type SortKey = 'region' | 'coverage_percent' | 'priority_score' | 'available_dentists' | 'interest_rate' | 'days_since_last' | 'preferred_available';
 
-export default function SchedulePlanner({ onClose, onScheduleGenerated }: SchedulePlannerProps) {
+export default function SchedulePlanner({ onClose, onScheduleGenerated, initialRegions, initialCities, initialCallers }: SchedulePlannerProps) {
     const [regions, setRegions] = useState<RegionStats[]>([]);
     const [callers, setCallers] = useState<Caller[]>([]);
     const [suggestions, setSuggestions] = useState<Record<string, string[]>>({});
@@ -53,9 +57,9 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated }: Schedu
     const { t } = useTranslation();
 
     // Schedule options
-    const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
-    const [selectedCities, setSelectedCities] = useState<string[]>([]);
-    const [selectedCallers, setSelectedCallers] = useState<string[]>([]);
+    const [selectedRegions, setSelectedRegions] = useState<string[]>(initialRegions || []);
+    const [selectedCities, setSelectedCities] = useState<string[]>(initialCities || []);
+    const [selectedCallers, setSelectedCallers] = useState<string[]>(initialCallers || []);
     const [availableCities, setAvailableCities] = useState<{ region: string; cities: CityWithStats[] }[]>([]);
     const [citySearch, setCitySearch] = useState('');
     const [scheduleDays, setScheduleDays] = useState(7);

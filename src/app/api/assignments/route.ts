@@ -48,6 +48,8 @@ export async function GET(request: NextRequest) {
         let sortBy = 'a.date, d.region, d.facility_name';
         if (searchParams.get('mode') === 'history') {
             sortBy = 'a.date DESC, d.region, d.facility_name';
+            // Exclude future assignments from history
+            whereClause += ` AND DATE(a.date) <= DATE('now', 'localtime')`;
         }
 
         if (date) {

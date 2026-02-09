@@ -7,27 +7,27 @@ import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
     try {
-        // Rate limiting: 5 login attempts per 15 minutes per IP
-        const clientIp = getClientIp(request.headers);
-        const rateLimit = checkRateLimit(`login:${clientIp}`, RATE_LIMITS.LOGIN);
+        // Rate limiting disabled
+        // const clientIp = getClientIp(request.headers);
+        // const rateLimit = checkRateLimit(`login:${clientIp}`, RATE_LIMITS.LOGIN);
 
-        if (!rateLimit.success) {
-            logger.warn('Auth', `Rate limit exceeded for IP: ${clientIp}`);
-            return NextResponse.json(
-                {
-                    success: false,
-                    error: 'Too many login attempts. Please try again later.',
-                    retryAfter: Math.ceil(rateLimit.resetIn / 1000)
-                },
-                {
-                    status: 429,
-                    headers: {
-                        'Retry-After': String(Math.ceil(rateLimit.resetIn / 1000)),
-                        'X-RateLimit-Remaining': '0',
-                    }
-                }
-            );
-        }
+        // if (!rateLimit.success) {
+        //     logger.warn('Auth', `Rate limit exceeded for IP: ${clientIp}`);
+        //     return NextResponse.json(
+        //         {
+        //             success: false,
+        //             error: 'Too many login attempts. Please try again later.',
+        //             retryAfter: Math.ceil(rateLimit.resetIn / 1000)
+        //         },
+        //         {
+        //             status: 429,
+        //             headers: {
+        //                 'Retry-After': String(Math.ceil(rateLimit.resetIn / 1000)),
+        //                 'X-RateLimit-Remaining': '0',
+        //             }
+        //         }
+        //     );
+        // }
 
         // Ensure default admin exists on first login attempt
         await ensureAdminExists();

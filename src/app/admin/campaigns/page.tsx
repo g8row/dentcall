@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/lib/translations';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import ConfirmModal from '@/components/ConfirmModal';
+import SchedulePlanner from '@/components/SchedulePlanner';
 
 interface Campaign {
     id: string;
@@ -22,6 +23,10 @@ interface Campaign {
     created_at: string;
     completed_at: string | null;
     cancelled_at: string | null;
+    // Raw arrays for duplication
+    target_region_ids: string[];
+    target_city_ids: string[];
+    caller_ids: string[];
 }
 
 type TabType = 'all' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
@@ -33,6 +38,7 @@ export default function CampaignsPage() {
     const [activeTab, setActiveTab] = useState<TabType>('all');
     const [editingCampaign, setEditingCampaign] = useState<string | null>(null);
     const [editName, setEditName] = useState('');
+    const [duplicatingCampaign, setDuplicatingCampaign] = useState<Campaign | null>(null);
     const { t } = useTranslation();
 
     // Full Edit Modal State
@@ -463,6 +469,13 @@ export default function CampaignsPage() {
                                                 >
                                                     {t('cancel')}
                                                 </button>
+                                                <button
+                                                    onClick={() => setDuplicatingCampaign(campaign)}
+                                                    className="px-3 py-1 text-xs bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 rounded hover:bg-cyan-500/30"
+                                                    title="Duplicate this campaign"
+                                                >
+                                                    📋 {t('duplicate') || 'Duplicate'}
+                                                </button>
                                             </>
                                         )}
                                         {campaign.status === 'CANCELLED' && (
@@ -729,6 +742,20 @@ export default function CampaignsPage() {
                 onConfirm={modalConfig.onConfirm}
                 onCancel={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
             />
+
+            {/* Schedule Planner for Duplication */}
+            {duplicatingCampaign && (
+                <SchedulePlanner
+                    onClose={() => setDuplicatingCampaign(null)}
+                    onScheduleGenerated={() => {
+                        setDuplicatingCampaign(null);
+                        loadCampaigns();
+                    }}
+                    initialRegions={duplicatingCampaign.target_region_ids}
+                    initialCities={duplicatingCampaign.target_city_ids}
+                    initialCallers={duplicatingCampaign.caller_ids}
+                />
+            )}
         </div>
     );
 }

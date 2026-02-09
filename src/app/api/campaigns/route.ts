@@ -90,6 +90,10 @@ export async function GET(request: NextRequest) {
                 regions: campaign.target_regions ? JSON.parse(campaign.target_regions).join(', ') : 'All Regions',
                 cities: campaign.target_cities ? JSON.parse(campaign.target_cities).join(', ') : null,
                 callers: callerNames.length > 0 ? callerNames.join(', ') : 'All Callers',
+                // Raw arrays for duplication
+                target_region_ids: campaign.target_regions ? JSON.parse(campaign.target_regions) : [],
+                target_city_ids: campaign.target_cities ? JSON.parse(campaign.target_cities) : [],
+                caller_ids: callerIds,
                 status: campaign.status,
                 total_assignments: assignmentStats.total_assignments,
                 completed_assignments: assignmentStats.completed_assignments,
@@ -174,9 +178,9 @@ export async function PATCH(request: NextRequest) {
             params.push(status);
 
             if (status === 'COMPLETED') {
-                updates.push('completed_at = datetime("now", "localtime")');
+                updates.push('completed_at = datetime(\'now\', \'localtime\')');
             } else if (status === 'CANCELLED') {
-                updates.push('cancelled_at = datetime("now", "localtime")');
+                updates.push('cancelled_at = datetime(\'now\', \'localtime\')');
             }
         }
 
@@ -276,7 +280,11 @@ export async function DELETE(request: NextRequest) {
                 deleted_assignments: deletedAssignments.changes,
             });
         } else {
-            // Soft delete: just mark as cancelled
+            // Soft delete: mark as cancelled AND delete uncompleted assignments
+            const deletedAssignments = db.prepare(`
+                DELETE FROM assignments WHERE campaign_id = ? AND completed = 0
+            `).run(campaignId);
+
             db.prepare(`
                 UPDATE campaigns 
                 SET status = 'CANCELLED', cancelled_at = datetime('now', 'localtime')
@@ -285,7 +293,8 @@ export async function DELETE(request: NextRequest) {
 
             return NextResponse.json({
                 success: true,
-                message: `Campaign cancelled (assignments preserved)`,
+                message: `Campaign cancelled`,
+                deleted_assignments: deletedAssignments.changes,
             });
         }
     } catch (error) {
