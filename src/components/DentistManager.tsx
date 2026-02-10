@@ -27,6 +27,7 @@ export default function DentistManager() {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
 
@@ -48,7 +49,8 @@ export default function DentistManager() {
     // Filter Updates - Debounced
     useEffect(() => {
         const timeoutId = setTimeout(() => {
-            fetchData(1);
+            setPage(1);
+            setDebouncedSearch(search.trim());
         }, 500);
         return () => clearTimeout(timeoutId);
     }, [search]);
@@ -57,6 +59,10 @@ export default function DentistManager() {
     useEffect(() => {
         fetchUsers();
     }, []);
+
+    useEffect(() => {
+        fetchData(page, debouncedSearch);
+    }, [page, debouncedSearch]);
 
     const fetchUsers = async () => {
         try {
@@ -68,13 +74,13 @@ export default function DentistManager() {
         }
     };
 
-    const fetchData = async (pageNum: number) => {
+    const fetchData = async (pageNum: number, searchTerm = debouncedSearch) => {
         setLoading(true);
         try {
             const params = new URLSearchParams({
                 page: pageNum.toString(),
                 limit: '20',
-                search: search
+                search: searchTerm
             });
 
             const res = await fetch(`/api/dentists?${params}`);

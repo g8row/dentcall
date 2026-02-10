@@ -32,8 +32,23 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-        whereClause += ' AND (facility_name LIKE ? OR manager LIKE ? OR phones LIKE ? OR eik LIKE ?)';
-        params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+        const variants = Array.from(new Set([
+            search,
+            search.toLowerCase(),
+            search.toUpperCase(),
+        ].filter(Boolean)));
+
+        const fields = ['facility_name', 'manager', 'phones', 'eik'];
+        const clauses = fields
+            .map(field => variants.map(() => `${field} LIKE ?`).join(' OR '))
+            .join(' OR ');
+
+        whereClause += ` AND (${clauses})`;
+        fields.forEach(() => {
+            variants.forEach(variant => {
+                params.push(`%${variant}%`);
+            });
+        });
     }
 
     const countResult = db.prepare(`SELECT COUNT(*) as total FROM dentists WHERE ${whereClause}`).get(...params) as { total: number };
