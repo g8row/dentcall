@@ -111,3 +111,63 @@ Bulgarian business registration number for dental practices:
 - Field: `eik` in dentists table
 - Used for business verification
 - Optional field in add/edit forms
+
+## Daily Summaries
+
+Callers can submit daily work summaries that are visible to admins.
+
+### For Callers
+
+**Submission (`/caller/daily-summary`):**
+- Free-text summary of work day
+- Automatic attachment of calls made
+- Can update existing summary for same date
+- Accessible via button in caller dashboard header
+
+### For Admins
+
+**Viewing (`Admin Dashboard > Daily Summaries tab`):**
+- View all caller summaries
+- Filter by caller, date range
+- Export to CSV
+- Statistics: total summaries, calls reported, active reporters
+
+**Email Reports:**
+- Manual trigger via "Send Daily Email" button
+- Automated via cron job (see `docs/DAILY_EMAIL.md`)
+- Contains:
+  - Call statistics (total, interested rate, callbacks)
+  - Individual caller summaries
+  - System logs and warnings
+  - Formatted HTML email
+
+### Database
+
+```sql
+daily_summaries (
+  id TEXT PRIMARY KEY,
+  caller_id TEXT NOT NULL,
+  summary_date TEXT NOT NULL,
+  summary_notes TEXT NOT NULL,
+  call_count INTEGER NOT NULL,
+  call_ids TEXT,  -- Comma-separated list of call IDs
+  created_at TEXT NOT NULL,
+  UNIQUE(caller_id, summary_date)
+)
+```
+
+### API Endpoints
+
+- `GET /api/daily-summaries` - Retrieve summaries (callers see own, admins see all)
+- `POST /api/daily-summaries` - Submit or update summary
+- `GET /api/daily-email` - Generate and send email report (admin only)
+
+### Email Configuration
+
+Requires environment variables:
+- `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASSWORD`
+- `EMAIL_FROM`, `EMAIL_TO` (comma-separated recipients)
+- `DAILY_EMAIL_API_KEY` (for cron job authentication)
+
+See `docs/DAILY_EMAIL.md` for detailed setup instructions.
+

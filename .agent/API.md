@@ -71,6 +71,20 @@
 |----------|--------|------|-------------|
 | `/api/data` | DELETE | Admin | Delete history. Query: `type=calls|assignments|all` |
 
+## Daily Summaries (`/api/daily-summaries/`)
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/daily-summaries` | GET | Any | Get daily summaries. Query: `caller_id?, start_date?, end_date?, summary_date?` |
+| `/api/daily-summaries` | POST | Any | Submit daily summary. Body: `{summary_date, summary_notes, call_ids?}` |
+
+## Daily Email (`/api/daily-email/`)
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/daily-email` | GET | Admin or API Key | Send daily summary email. Query: `date?, api_key?` |
+| `/api/daily-email` | POST | Admin or API Key | Same as GET |
+
 ## Export (`/api/export/`)
 
 | Endpoint | Method | Auth | Description |

@@ -12,6 +12,7 @@ import ConfirmModal from '@/components/ConfirmModal';
 import AddDentistModal from '@/components/AddDentistModal';
 import SchedulingInfoModal from '@/components/SchedulingInfoModal';
 import DentistManager from '@/components/DentistManager';
+import DailySummariesView from '@/components/DailySummariesView';
 
 // ... (existing interfaces)
 
@@ -108,7 +109,7 @@ export default function AdminDashboard() {
     const [scheduleResult, setScheduleResult] = useState<{ message: string; region_breakdown?: Record<string, number> } | null>(null);
 
     const [newUser, setNewUser] = useState({ username: '', password: '', daily_target: 50, display_name: '' });
-    const [activeTab, setActiveTab] = useState<'calendar' | 'users' | 'data' | 'stats' | 'database'>('stats');
+    const [activeTab, setActiveTab] = useState<'calendar' | 'users' | 'data' | 'stats' | 'database' | 'summaries'>('stats');
     const [editingUser, setEditingUser] = useState<User | null>(null);
 
     // Import state
@@ -746,6 +747,15 @@ export default function AdminDashboard() {
                     >
                         {t('data_export')}
                     </button>
+                    <button
+                        onClick={() => setActiveTab('summaries')}
+                        className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap shrink-0 ${activeTab === 'summaries'
+                            ? 'bg-emerald-500 text-white'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                            }`}
+                    >
+                        {t('daily_summaries')}
+                    </button>
                 </div>
             </div >
 
@@ -754,6 +764,7 @@ export default function AdminDashboard() {
                 {/* Stats Tab */}
                 {activeTab === 'stats' && <StatsDashboard />}
                 {activeTab === 'database' && <DentistManager />}
+                {activeTab === 'summaries' && <DailySummariesView />}
 
                 {/* Calendar Tab */}
                 {
@@ -1170,13 +1181,13 @@ export default function AdminDashboard() {
                                                                 <>
                                                                     <button
                                                                         onClick={() => handleUpdateUser(u.id, { daily_target: editingUser.daily_target, display_name: editingUser.display_name })}
-                                                                        className="text-emerald-400 hover:text-emerald-300"
+                                                                        className="px-3 py-1 text-sm text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 hover:border-emerald-500/50 rounded font-medium"
                                                                     >
                                                                         Save
                                                                     </button>
                                                                     <button
                                                                         onClick={() => setEditingUser(null)}
-                                                                        className="text-slate-400 hover:text-white"
+                                                                        className="px-3 py-1 text-sm text-slate-400 hover:text-white border border-slate-600/30 hover:border-slate-600/50 rounded"
                                                                     >
                                                                         Cancel
                                                                     </button>
@@ -1184,38 +1195,41 @@ export default function AdminDashboard() {
                                                             ) : (
                                                                 <>
                                                                     <button
-                                                                        onClick={() => setTransferSourceUser(u.id)}
-                                                                        className="text-indigo-400 hover:text-indigo-300 text-xs uppercase font-bold tracking-wider"
-                                                                        title="Transfer preferred dentists"
-                                                                    >
-                                                                        Transfer
-                                                                    </button>
-                                                                    <button
                                                                         onClick={() => setEditingUser(u)}
-                                                                        className="text-slate-400 hover:text-white"
+                                                                        className="px-2 py-1 text-sm text-cyan-400 hover:text-cyan-300 border border-cyan-500/30 hover:border-cyan-500/50 rounded"
+                                                                        title="Edit user details"
                                                                     >
                                                                         Edit
                                                                     </button>
                                                                     <button
+                                                                        onClick={() => handleResetPassword(u.id, u.username)}
+                                                                        className="px-2 py-1 text-sm text-amber-400 hover:text-amber-300 border border-amber-500/30 hover:border-amber-500/50 rounded"
+                                                                        title="Reset Password to 'password'"
+                                                                    >
+                                                                        Reset Pwd
+                                                                    </button>
+                                                                    <div className="h-6 w-px bg-slate-600 mx-1"></div>
+                                                                    <button
+                                                                        onClick={() => setTransferSourceUser(u.id)}
+                                                                        className="px-2 py-1 text-sm text-purple-400 hover:text-purple-300 border border-purple-500/30 hover:border-purple-500/50 rounded"
+                                                                        title="Transfer preferred dentists"
+                                                                    >
+                                                                        Transfer
+                                                                    </button>
+                                                                    <div className="h-6 w-px bg-slate-600 mx-1"></div>
+                                                                    <button
                                                                         onClick={() => handleDeactivateUser(u.id)}
-                                                                        className="text-amber-500 hover:text-amber-400"
+                                                                        className="px-2 py-1 text-sm text-orange-400 hover:text-orange-300 border border-orange-500/30 hover:border-orange-500/50 rounded"
                                                                         title="Deactivate (Keep History)"
                                                                     >
                                                                         Deactivate
                                                                     </button>
                                                                     <button
                                                                         onClick={() => handleDeleteUser(u.id)}
-                                                                        className="text-red-400 hover:text-red-300"
+                                                                        className="px-2 py-1 text-sm text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-500/50 rounded"
                                                                         title="Delete Permanently"
                                                                     >
                                                                         Delete
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => handleResetPassword(u.id, u.username)}
-                                                                        className="text-orange-400 hover:text-orange-300"
-                                                                        title="Reset Password to 'password'"
-                                                                    >
-                                                                        Reset Pwd
                                                                     </button>
                                                                 </>
                                                             )}
@@ -1313,15 +1327,6 @@ export default function AdminDashboard() {
                                     <div className="text-purple-400 text-2xl mb-2">📊</div>
                                     <h3 className="font-semibold mb-1">{t('export_stats')}</h3>
                                     <p className="text-sm text-slate-400">{t('export_stats_desc')}</p>
-                                </button>
-
-                                <button
-                                    onClick={handleCleanupDuplicates}
-                                    className="p-6 bg-slate-800 rounded-xl border border-slate-700 hover:border-amber-500 transition text-left"
-                                >
-                                    <div className="text-amber-400 text-2xl mb-2">🧹</div>
-                                    <h3 className="font-semibold mb-1">Cleanup</h3>
-                                    <p className="text-sm text-slate-400">Merge "РЗОК" Duplicates</p>
                                 </button>
                             </div>
 

@@ -68,6 +68,18 @@ export async function GET(request: NextRequest) {
                 GROUP BY c.outcome
             `).all(campaign.id, campaign.start_date, campaign.end_date) as { outcome: string; count: number }[];
 
+            const implantStats = db.prepare(`
+                SELECT 
+                    COUNT(DISTINCT c.dentist_id) as called_dentists,
+                    COUNT(DISTINCT CASE WHEN d.wants_implants = 1 THEN c.dentist_id END) as implants_enabled_called
+                FROM calls c
+                JOIN dentists d ON d.id = c.dentist_id
+                WHERE c.dentist_id IN (
+                    SELECT DISTINCT dentist_id FROM assignments WHERE campaign_id = ?
+                )
+                AND DATE(c.called_at) >= ? AND DATE(c.called_at) <= ?
+            `).get(campaign.id, campaign.start_date, campaign.end_date) as { called_dentists: number; implants_enabled_called: number };
+
             const outcomeStats: Record<string, number> = {};
             outcomes.forEach(o => { outcomeStats[o.outcome] = o.count; });
 
@@ -97,6 +109,8 @@ export async function GET(request: NextRequest) {
                 status: campaign.status,
                 total_assignments: assignmentStats.total_assignments,
                 completed_assignments: assignmentStats.completed_assignments,
+                called_dentists: implantStats.called_dentists || 0,
+                implants_enabled_called: implantStats.implants_enabled_called || 0,
                 outcomes: outcomeStats,
                 created_at: campaign.created_at,
                 completed_at: campaign.completed_at,

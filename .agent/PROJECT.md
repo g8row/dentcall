@@ -67,6 +67,7 @@ src/
 - **calls**: `id, dentist_id, caller_id, outcome (INTERESTED|NOT_INTERESTED|NO_ANSWER|CALLBACK|ORDER_TAKEN|OTHER), notes, called_at`
 - **assignments**: `id, date, dentist_id, caller_id, campaign_id, completed, created_at`
 - **campaigns**: `id, name, start_date, end_date, region_filter, status (ACTIVE|COMPLETED|CANCELLED), created_at`
+- **daily_summaries**: `id, caller_id, summary_date, summary_notes, call_count, call_ids, created_at`
 
 ## User Roles
 

@@ -94,6 +94,18 @@ function getDb(): Database.Database {
         cancelled_at TEXT
       );
 
+      CREATE TABLE IF NOT EXISTS daily_summaries (
+        id TEXT PRIMARY KEY,
+        caller_id TEXT NOT NULL,
+        summary_date TEXT NOT NULL,
+        summary_notes TEXT NOT NULL,
+        call_count INTEGER NOT NULL DEFAULT 0,
+        call_ids TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (caller_id) REFERENCES users(id),
+        UNIQUE(caller_id, summary_date)
+      );
+
       CREATE INDEX IF NOT EXISTS idx_dentists_region ON dentists(region);
       CREATE INDEX IF NOT EXISTS idx_dentists_cities ON dentists(cities_served);
       CREATE INDEX IF NOT EXISTS idx_dentists_preferred_caller ON dentists(preferred_caller_id);
@@ -108,6 +120,9 @@ function getDb(): Database.Database {
       CREATE INDEX IF NOT EXISTS idx_assignments_date_caller ON assignments(date, caller_id);
       CREATE INDEX IF NOT EXISTS idx_assignments_completed ON assignments(completed);
       CREATE INDEX IF NOT EXISTS idx_campaigns_status ON campaigns(status);
+      CREATE INDEX IF NOT EXISTS idx_daily_summaries_caller ON daily_summaries(caller_id);
+      CREATE INDEX IF NOT EXISTS idx_daily_summaries_date ON daily_summaries(summary_date);
+      CREATE INDEX IF NOT EXISTS idx_daily_summaries_caller_date ON daily_summaries(caller_id, summary_date);
     `);
 
   // Migration: Add must_reset_password column if it doesn't exist
@@ -271,4 +286,14 @@ export interface Campaign {
   created_at: string;
   completed_at: string | null;
   cancelled_at: string | null;
+}
+
+export interface DailySummary {
+  id: string;
+  caller_id: string;
+  summary_date: string;
+  summary_notes: string;
+  call_count: number;
+  call_ids: string | null;
+  created_at: string;
 }

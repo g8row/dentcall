@@ -32,8 +32,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-        whereClause += ' AND (facility_name LIKE ? OR manager LIKE ? OR phones LIKE ?)';
-        params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+        whereClause += ' AND (facility_name LIKE ? OR manager LIKE ? OR phones LIKE ? OR eik LIKE ?)';
+        params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
     }
 
     const countResult = db.prepare(`SELECT COUNT(*) as total FROM dentists WHERE ${whereClause}`).get(...params) as { total: number };

@@ -11,6 +11,7 @@ interface OverviewStats {
     today_capacity: number;
     overall_coverage: number;
     pending_callbacks: number;
+    implants_enabled: number;
 }
 
 interface RegionStats {
@@ -79,6 +80,7 @@ export async function GET() {
         // 1. Overview Stats
         const totalDentists = (db.prepare(`SELECT COUNT(*) as count FROM dentists`).get() as { count: number }).count;
         const totalCalls = (db.prepare(`SELECT COUNT(*) as count FROM calls`).get() as { count: number }).count;
+        const implantsEnabled = (db.prepare(`SELECT COUNT(*) as count FROM dentists WHERE wants_implants = 1`).get() as { count: number }).count;
 
         const outcomesCounts = db.prepare(`
             SELECT 
@@ -141,6 +143,7 @@ export async function GET() {
             today_capacity: todayCapacity,
             overall_coverage: overallCoverage,
             pending_callbacks: pendingCallbacks,
+            implants_enabled: implantsEnabled,
         };
 
         // 2. Region Stats

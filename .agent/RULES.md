@@ -89,14 +89,20 @@ if (!session || session.role !== 'ADMIN') {
 2. Check for lint warnings
 3. Test affected functionality
 
-### 9. Interface Consistency
+### 9. Problems Panel Check
+
+**Before saying work is finished:**
+- Check the VS Code Problems panel and resolve any remaining errors
+- If any errors remain, call them out explicitly
+
+### 10. Interface Consistency
 
 **Keep interface definitions in sync:**
 - Same User/Caller interface across components
 - Include `display_name?: string | null` in all user-related interfaces
 - Match API response shapes
 
-### 10. Commit Hygiene
+### 11. Commit Hygiene
 
 **Avoid committing:**
 - Database files (`*.db`, `*.db-wal`, `*.db-shm`)

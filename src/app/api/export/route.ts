@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
           d.cities_served as "Cities",
           d.staff_count as "Staff Count",
           d.eik as "EIK",
+          d.wants_implants as "Implants Enabled",
           u.username as "Preferred Caller",
           (SELECT outcome FROM calls WHERE dentist_id = d.id ORDER BY called_at DESC LIMIT 1) as "Last Outcome",
           (SELECT called_at FROM calls WHERE dentist_id = d.id ORDER BY called_at DESC LIMIT 1) as "Last Called"
@@ -63,6 +64,11 @@ export async function GET(request: NextRequest) {
 
         return { ...row, Phones: phones, Cities: cities };
       });
+
+      data = data.map(row => ({
+        ...row,
+        'Implants Enabled': Number(row['Implants Enabled']) === 1 ? 'Yes' : 'No',
+      }));
 
       filename = 'dentists_export.xlsx';
     } else if (type === 'calls') {
@@ -112,7 +118,16 @@ export async function GET(request: NextRequest) {
       // Translate outcomes to Bulgarian
       data = rawData.map(row => ({
         ...row,
-        Outcome: outcomeTranslations[row.Outcome as string] || row.Outcome,
+        Outcome: (() => {
+          const outcome = row.Outcome as string;
+          if (outcome === 'IMPLANT_STATUS') {
+            const notes = String(row.Notes || '').toLowerCase();
+            if (notes.includes('enabled')) return 'Импланти: включени';
+            if (notes.includes('disabled')) return 'Импланти: изключени';
+            return 'Промяна на статус импланти';
+          }
+          return outcomeTranslations[outcome] || outcome;
+        })(),
       }));
 
       filename = 'calls_export.xlsx';
@@ -126,9 +141,11 @@ export async function GET(request: NextRequest) {
           SUM(CASE WHEN c.outcome = 'NOT_INTERESTED' THEN 1 ELSE 0 END) as "Not Interested",
           SUM(CASE WHEN c.outcome = 'NO_ANSWER' THEN 1 ELSE 0 END) as "No Answer",
           SUM(CASE WHEN c.outcome = 'CALLBACK' THEN 1 ELSE 0 END) as "Callback",
-          SUM(CASE WHEN c.outcome = 'ORDER_TAKEN' THEN 1 ELSE 0 END) as "Order Taken"
+          SUM(CASE WHEN c.outcome = 'ORDER_TAKEN' THEN 1 ELSE 0 END) as "Order Taken",
+          COUNT(DISTINCT CASE WHEN d.wants_implants = 1 THEN c.dentist_id END) as "Implants Enabled"
         FROM users u
         LEFT JOIN calls c ON u.id = c.caller_id
+        LEFT JOIN dentists d ON c.dentist_id = d.id
         WHERE u.role = 'CALLER'
         GROUP BY u.id
         ORDER BY COUNT(c.id) DESC

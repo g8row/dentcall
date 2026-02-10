@@ -9,6 +9,9 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "DentCall - Cold Calling Management",
   description: "Internal tool for managing dentist cold calling campaigns",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

@@ -19,6 +19,8 @@ interface Campaign {
     status: string;
     total_assignments: number;
     completed_assignments: number;
+    called_dentists: number;
+    implants_enabled_called: number;
     outcomes: Record<string, number>;
     created_at: string;
     completed_at: string | null;
@@ -390,6 +392,11 @@ export default function CampaignsPage() {
                         const callback = campaign.outcomes?.CALLBACK || 0;
                         const orderTaken = campaign.outcomes?.ORDER_TAKEN || 0;
                         const totalCalls = interested + notInterested + noAnswer + callback + orderTaken;
+                        const calledDentists = campaign.called_dentists || 0;
+                        const implantsEnabled = campaign.implants_enabled_called || 0;
+                        const implantsEnabledPercent = calledDentists > 0
+                            ? Math.round((implantsEnabled / calledDentists) * 100)
+                            : 0;
 
                         return (
                             <div key={campaign.id} className={`bg-slate-800 rounded-xl border p-6 ${campaign.status === 'CANCELLED' ? 'border-red-500/30 opacity-75' :
@@ -469,13 +476,6 @@ export default function CampaignsPage() {
                                                 >
                                                     {t('cancel')}
                                                 </button>
-                                                <button
-                                                    onClick={() => setDuplicatingCampaign(campaign)}
-                                                    className="px-3 py-1 text-xs bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 rounded hover:bg-cyan-500/30"
-                                                    title="Duplicate this campaign"
-                                                >
-                                                    📋 {t('duplicate') || 'Duplicate'}
-                                                </button>
                                             </>
                                         )}
                                         {campaign.status === 'CANCELLED' && (
@@ -487,6 +487,13 @@ export default function CampaignsPage() {
                                                 🗑️ {t('delete')}
                                             </button>
                                         )}
+                                        <button
+                                            onClick={() => setDuplicatingCampaign(campaign)}
+                                            className="px-3 py-1 text-xs bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 rounded hover:bg-cyan-500/30"
+                                            title="Duplicate this campaign"
+                                        >
+                                            📋 {t('duplicate') || 'Duplicate'}
+                                        </button>
                                     </div>
                                 </div>
 
@@ -538,6 +545,12 @@ export default function CampaignsPage() {
                                             <span className="text-slate-400">{t('interest_rate_col')}</span>
                                             <span className={`font-medium ${interested > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
                                                 {totalCalls > 0 ? Math.round((interested / totalCalls) * 100) : 0}%
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between text-sm mt-2">
+                                            <span className="text-slate-400">{t('implants_enabled')}</span>
+                                            <span className={`font-medium ${implantsEnabled > 0 ? 'text-sky-400' : 'text-slate-400'}`}>
+                                                {implantsEnabled} / {calledDentists} ({implantsEnabledPercent}%)
                                             </span>
                                         </div>
                                     </div>

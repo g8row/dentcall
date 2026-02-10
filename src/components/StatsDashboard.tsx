@@ -14,6 +14,7 @@ interface DashboardData {
         today_capacity: number;
         overall_coverage: number;
         pending_callbacks: number;
+        implants_enabled: number;
     };
     regions: Array<{
         region: string;
@@ -107,6 +108,9 @@ export default function StatsDashboard() {
         data.outcomes.no_answer + data.outcomes.callback + data.outcomes.order_taken;
 
     const outcomePercent = (count: number) => totalOutcomes > 0 ? Math.round((count / totalOutcomes) * 100) : 0;
+    const implantsEnabledPercent = data.overview.total_dentists > 0
+        ? Math.round((data.overview.implants_enabled / data.overview.total_dentists) * 100)
+        : 0;
 
     // Sort regions
     const sortedRegions = [...data.regions].sort((a, b) => {
@@ -161,17 +165,40 @@ export default function StatsDashboard() {
             case 'NO_ANSWER': return 'bg-slate-500/20 text-slate-400';
             case 'CALLBACK':
             case 'ORDER_TAKEN': return 'bg-cyan-500/20 text-cyan-400';
+            case 'IMPLANT_STATUS': return 'bg-sky-500/20 text-sky-400';
             default: return 'bg-slate-500/20 text-slate-400';
         }
+    };
+
+    const getOutcomeLabel = (outcome: string, notes: string | null) => {
+        if (outcome === 'IMPLANT_STATUS') {
+            const note = (notes || '').toLowerCase();
+            if (note.includes('enabled')) return t('implants_enabled');
+            if (note.includes('disabled')) return t('implants_disabled');
+            return t('implants_status');
+        }
+
+        return outcome === 'INTERESTED' ? t('interested') :
+            outcome === 'NOT_INTERESTED' ? t('not_interested') :
+                outcome === 'NO_ANSWER' ? t('no_answer') :
+                    outcome === 'CALLBACK' ? t('callback') :
+                        outcome === 'ORDER_TAKEN' ? t('order_taken') : outcome;
     };
 
     return (
         <div className="space-y-6">
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
                 <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
                     <div className="text-slate-400 text-sm">{t('total_dentists')}</div>
                     <div className="text-2xl font-bold text-white mt-1">{data.overview.total_dentists.toLocaleString()}</div>
+                </div>
+                <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
+                    <div className="text-slate-400 text-sm">{t('implants_enabled')}</div>
+                    <div className="text-2xl font-bold text-sky-400 mt-1">
+                        {data.overview.implants_enabled.toLocaleString()}
+                        <span className="text-sm text-slate-400 font-normal"> ({implantsEnabledPercent}%)</span>
+                    </div>
                 </div>
                 <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
                     <div className="text-slate-400 text-sm">{t('total_calls')}</div>
@@ -338,6 +365,11 @@ export default function StatsDashboard() {
                                 <span className="text-slate-300">{t('order_taken')}</span>
                                 <span className="text-white font-semibold">{outcomePercent(data.outcomes.order_taken)}%</span>
                             </div>
+                            <div className="flex items-center gap-2">
+                                <span className="w-3 h-3 bg-sky-500 rounded"></span>
+                                <span className="text-slate-300">{t('implants_enabled')}</span>
+                                <span className="text-white font-semibold">{implantsEnabledPercent}%</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -453,11 +485,7 @@ export default function StatsDashboard() {
                                     <td className="px-4 py-3 text-slate-300">{call.region}</td>
                                     <td className="px-4 py-3">
                                         <span className={`px-2 py-1 rounded text-xs font-medium ${getOutcomeColor(call.outcome)}`}>
-                                            {call.outcome === 'INTERESTED' ? t('interested') :
-                                                call.outcome === 'NOT_INTERESTED' ? t('not_interested') :
-                                                    call.outcome === 'NO_ANSWER' ? t('no_answer') :
-                                                        call.outcome === 'CALLBACK' ? t('callback') :
-                                                            call.outcome === 'ORDER_TAKEN' ? t('order_taken') : call.outcome}
+                                            {getOutcomeLabel(call.outcome, call.notes)}
                                         </span>
                                     </td>
                                     <td className="px-4 py-3 text-slate-400 text-sm max-w-xs truncate" title={call.notes || ''}>

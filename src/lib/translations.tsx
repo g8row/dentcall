@@ -40,6 +40,7 @@ const translations = {
         campaigns: 'Campaigns',
         users: 'Users',
         data_export: 'Data Export',
+        daily_summaries: 'Daily Summaries',
         no_assignments: 'No assignments',
         per_caller: 'Per Caller',
         delete_day: 'Delete Day Schedule',
@@ -270,6 +271,9 @@ const translations = {
 
         // Outcomes
         outcome_distribution: 'Outcome Distribution',
+        implants_status: 'Implants Status',
+        implants_enabled: 'Implants Enabled',
+        implants_disabled: 'Implants Disabled',
 
         // Recent Calls
         recent_calls: 'Recent Calls',
@@ -301,7 +305,28 @@ const translations = {
         reset_btn: 'Reset',
         reset_password_confirm: 'Are you sure you want to reset the password for {user}? It will be set to "password".',
         password_reset_success: 'Password reset successfully',
-        // Tutorial
+        
+        // Daily Summaries
+        daily_summary_title: 'Daily Summary',
+        my_daily_summary: 'My Daily Summary',
+        submit_daily_summary: 'Submit Daily Summary',
+        summary_for: 'Summary for',
+        summary_notes_label: 'Notes for the Day',
+        summary_notes_placeholder: 'Describe your work day, challenges, successes, notes...',
+        today_calls_count: 'Calls Today',
+        attach_calls: 'Attach Today\'s Calls',
+        summary_submitted: 'Daily summary submitted successfully',
+        summary_updated: 'Daily summary updated',
+        summary_error: 'Error submitting daily summary',
+        view_summaries: 'View Summaries',
+        all_summaries: 'All Daily Summaries',
+        no_summaries: 'No daily summaries yet',
+        summary_date: 'Date',
+        submitted_by: 'Submitted by',
+        submitted_at: 'Submitted at',
+        call_count: 'Calls',
+summary_already_exists: 'You already submitted a summary for this date. Submitting again will update it.',
+        
         tutorial_title: 'Admin Dashboard Guide',
         tutorial_description: 'Welcome to your cold calling command center. Here is how to use it proficiently.',
         tut_schedule_title: '📅 Schedule Planner',
@@ -438,6 +463,7 @@ const translations = {
         campaigns: 'Кампании',
         users: 'Потребители',
         data_export: 'Експорт Данни',
+        daily_summaries: 'Дневни Отчети',
         no_assignments: 'Няма задачи',
         per_caller: 'По служител',
         delete_day: 'Изтрий График за Деня',
@@ -668,6 +694,9 @@ const translations = {
 
         // Outcomes
         outcome_distribution: 'Разпределение Резултати',
+        implants_status: 'Статус импланти',
+        implants_enabled: 'Импланти включени',
+        implants_disabled: 'Импланти изключени',
 
         // Recent Calls
         recent_calls: 'Последни Обаждания',
@@ -699,7 +728,28 @@ const translations = {
         reset_btn: 'Нулирай',
         reset_password_confirm: 'Сигурни ли сте, че искате да нулирате паролата за {user}? Тя ще бъде зададена като "password".',
         password_reset_success: 'Паролата е нулирана успешно',
-
+        
+        // Daily Summaries
+        daily_summary_title: 'Дневен Отчет',
+        my_daily_summary: 'Моят Дневен Отчет',
+        submit_daily_summary: 'Изпрати Дневен Отчет',
+        summary_for: 'Отчет за',
+        summary_notes_label: 'Бележки за Деня',
+        summary_notes_placeholder: 'Опишете работния си ден, предизвикателства, успехи, бележки...',
+        today_calls_count: 'Обаждания Днес',
+        attach_calls: 'Прикачи Днешните Обаждания',
+        summary_submitted: 'Дневният отчет е изпратен успешно',
+        summary_updated: 'Дневният отчет е обновен',
+        summary_error: 'Грешка при изпращане на дневен отчет',
+        view_summaries: 'Виж Отчети',
+        all_summaries: 'Всички Дневни Отчети',
+        no_summaries: 'Няма дневни отчети още',
+        summary_date: 'Дата',
+        submitted_by: 'Изпратен от',
+        submitted_at: 'Изпратен на',
+        call_count: 'Обаждания',
+        summary_already_exists: 'Вече сте изпратили отчет за тази дата. Ново изпращане ще го актуализира.',
+        
         // Scheduling Logic Modal
         sl_title: 'Логика на График и Обаждания',
         sl_intro: 'Този документ обяснява точно как системата избира зъболекари, разпределя ги между служителите и обработва резултатите от разговорите.',
