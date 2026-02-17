@@ -87,15 +87,23 @@ export async function GET(request: NextRequest) {
         SELECT id, dentist_id, outcome, notes, called_at,
                ROW_NUMBER() OVER (PARTITION BY dentist_id ORDER BY called_at DESC) as rn
         FROM calls
+    ),
+    LastOrders AS (
+        SELECT dentist_id, MAX(called_at) as last_order_at
+        FROM calls
+        WHERE outcome = 'ORDER_TAKEN'
+        GROUP BY dentist_id
     )
     SELECT a.*, d.facility_name, d.region, d.phones, d.manager, d.cities_served, d.preferred_caller_id, d.wants_implants, d.eik,
            COALESCE(u.display_name, u.username) as caller_name, a.notes,
-           lc.outcome as last_outcome, lc.id as last_call_id, lc.notes as call_notes, lc.called_at as last_called_at
+           lc.outcome as last_outcome, lc.id as last_call_id, lc.notes as call_notes, lc.called_at as last_called_at,
+           lo.last_order_at
     FROM assignments a
     JOIN dentists d ON a.dentist_id = d.id
     JOIN users u ON a.caller_id = u.id
     LEFT JOIN campaigns c ON a.campaign_id = c.id
     LEFT JOIN LatestCalls lc ON a.dentist_id = lc.dentist_id AND lc.rn = 1
+    LEFT JOIN LastOrders lo ON a.dentist_id = lo.dentist_id
     WHERE ${whereClause} AND (c.status IS NULL OR c.status != 'CANCELLED')
     ORDER BY ${sortBy}
   `).all(...params);
@@ -358,12 +366,13 @@ export async function POST(request: NextRequest) {
              MAX(c.called_at) as last_called,
              MAX(CASE WHEN c.outcome = 'CALLBACK' THEN 1 ELSE 0 END) as has_callback,
              MAX(CASE WHEN c.outcome = 'INTERESTED' THEN 1 ELSE 0 END) as already_interested,
-             MAX(CASE WHEN c.outcome = 'NOT_INTERESTED' THEN 1 ELSE 0 END) as already_rejected
+             MAX(CASE WHEN c.outcome = 'NOT_INTERESTED' THEN 1 ELSE 0 END) as already_rejected,
+             MAX(CASE WHEN c.outcome = 'ORDER_TAKEN' THEN 1 ELSE 0 END) as already_ordered
       FROM dentists d
       LEFT JOIN calls c ON d.id = c.dentist_id
       WHERE 1=1 ${locationFilter}
       GROUP BY d.id
-      HAVING already_interested = 0 AND already_rejected = 0
+      HAVING already_interested = 0 AND already_rejected = 0 AND already_ordered = 0
       ORDER BY 
         has_callback DESC,
         last_called IS NULL DESC,

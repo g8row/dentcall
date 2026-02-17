@@ -127,6 +127,7 @@ const translations = {
         submit: 'Submit',
         preferred_badge: 'Preferred',
         manager_prefix: 'Manager:',
+        last_order: 'Last order',
         editing_call: 'Editing call outcome',
         remaining: 'Remaining',
         not_int_short: 'Not Int.',
@@ -305,7 +306,7 @@ const translations = {
         reset_btn: 'Reset',
         reset_password_confirm: 'Are you sure you want to reset the password for {user}? It will be set to "password".',
         password_reset_success: 'Password reset successfully',
-        
+
         // Daily Summaries
         daily_summary_title: 'Daily Summary',
         my_daily_summary: 'My Daily Summary',
@@ -325,8 +326,8 @@ const translations = {
         submitted_by: 'Submitted by',
         submitted_at: 'Submitted at',
         call_count: 'Calls',
-summary_already_exists: 'You already submitted a summary for this date. Submitting again will update it.',
-        
+        summary_already_exists: 'You already submitted a summary for this date. Submitting again will update it.',
+
         tutorial_title: 'Admin Dashboard Guide',
         tutorial_description: 'Welcome to your cold calling command center. Here is how to use it proficiently.',
         tut_schedule_title: '📅 Schedule Planner',
@@ -550,6 +551,7 @@ summary_already_exists: 'You already submitted a summary for this date. Submitti
         submit: 'Запиши',
         preferred_badge: 'Предпочитан',
         manager_prefix: 'Управител:',
+        last_order: 'Последна заявка',
         editing_call: 'Редактиране на резултат',
         remaining: 'Остават',
         not_int_short: 'Незаинт.',
@@ -728,7 +730,7 @@ summary_already_exists: 'You already submitted a summary for this date. Submitti
         reset_btn: 'Нулирай',
         reset_password_confirm: 'Сигурни ли сте, че искате да нулирате паролата за {user}? Тя ще бъде зададена като "password".',
         password_reset_success: 'Паролата е нулирана успешно',
-        
+
         // Daily Summaries
         daily_summary_title: 'Дневен Отчет',
         my_daily_summary: 'Моят Дневен Отчет',
@@ -749,7 +751,7 @@ summary_already_exists: 'You already submitted a summary for this date. Submitti
         submitted_at: 'Изпратен на',
         call_count: 'Обаждания',
         summary_already_exists: 'Вече сте изпратили отчет за тази дата. Ново изпращане ще го актуализира.',
-        
+
         // Scheduling Logic Modal
         sl_title: 'Логика на График и Обаждания',
         sl_intro: 'Този документ обяснява точно как системата избира зъболекари, разпределя ги между служителите и обработва резултатите от разговорите.',

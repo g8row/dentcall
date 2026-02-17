@@ -19,6 +19,12 @@ export async function GET(request: NextRequest) {
     let whereClause = '1=1';
     const params: (string | number)[] = [];
 
+    // Non-admins can only see their own calls
+    if (session.role !== 'ADMIN' && !callerId) {
+        whereClause += ' AND c.caller_id = ?';
+        params.push(session.user.id);
+    }
+
     if (dentistId) {
         whereClause += ' AND dentist_id = ?';
         params.push(dentistId);

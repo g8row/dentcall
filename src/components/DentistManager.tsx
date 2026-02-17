@@ -120,6 +120,20 @@ export default function DentistManager() {
 
             if (res.ok) {
                 fetchData(page); // Reload data
+            } else if (data.can_force) {
+                // Offer force delete
+                const info = data.calls
+                    ? `This dentist has ${data.calls} call(s) in history.`
+                    : `This dentist has ${data.assignments} pending assignment(s).`;
+                if (confirm(`${info}\n\nDelete anyway? This will also remove all related calls and assignments.`)) {
+                    const forceRes = await fetch(`/api/dentists/${dentist.id}?force=true`, { method: 'DELETE' });
+                    if (forceRes.ok) {
+                        fetchData(page);
+                    } else {
+                        const forceData = await forceRes.json();
+                        alert(forceData.error || t('error_delete_dentist'));
+                    }
+                }
             } else {
                 alert(data.error || t('error_delete_dentist'));
             }

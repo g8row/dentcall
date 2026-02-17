@@ -130,3 +130,20 @@ const result = db.prepare('SELECT * FROM table WHERE id = ?').get(id);
 // Translation usage
 const { t } = useTranslation();
 ```
+
+### 8. Git Commit Messages
+
+**Use conventional commit format** matching the existing project history:
+
+- `fix:` or `fix(scope):` for bug fixes
+- `feat:` or `feat(scope):` for new features
+- `refactor:` for code restructuring
+- Scope examples: `ui`, `api`, `caller`, `admin`, `db`
+
+**Examples from this project:**
+```
+fix: schedule generator excludes ORDER_TAKEN terminal outcomes
+feat(caller): show last order date on dentist cards
+fix(api): scope calls endpoint by caller_id for non-admins
+feat: daily summaries and implants reporting
+```

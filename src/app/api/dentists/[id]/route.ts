@@ -135,6 +135,7 @@ export async function DELETE(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const force = new URL(request.url).searchParams.get('force') === 'true';
     const { id } = await context.params;
 
     try {
@@ -150,22 +151,24 @@ export async function DELETE(
         // Check for active assignments
         const assignmentCount = db.prepare('SELECT COUNT(*) as count FROM assignments WHERE dentist_id = ? AND completed = 0').get(id) as { count: number };
 
-        if (callCount.count > 0) {
+        if (callCount.count > 0 && !force) {
             return NextResponse.json({
                 error: 'Cannot delete dentist with call history. This dentist has been called before.',
-                calls: callCount.count
+                calls: callCount.count,
+                can_force: true
             }, { status: 400 });
         }
 
-        if (assignmentCount.count > 0) {
+        if (assignmentCount.count > 0 && !force) {
             return NextResponse.json({
                 error: 'Cannot delete dentist with pending assignments.',
-                assignments: assignmentCount.count
+                assignments: assignmentCount.count,
+                can_force: true
             }, { status: 400 });
         }
 
-        // Safe to delete - no call history or pending assignments
-        // First delete any completed assignments (orphan cleanup)
+        // Delete related records first
+        db.prepare('DELETE FROM calls WHERE dentist_id = ?').run(id);
         db.prepare('DELETE FROM assignments WHERE dentist_id = ?').run(id);
 
         // Then delete the dentist

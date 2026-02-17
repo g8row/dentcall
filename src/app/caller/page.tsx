@@ -31,6 +31,7 @@ interface Assignment {
     last_call_id?: string;
     call_notes?: string;
     last_called_at?: string;
+    last_order_at?: string;
 }
 
 interface CallLog {
@@ -473,6 +474,12 @@ export default function CallerDashboard() {
                                                 {assignment.manager && (
                                                     <p className="text-sm text-slate-500 mt-1">
                                                         {t('manager_prefix')} {assignment.manager}
+                                                    </p>
+                                                )}
+                                                {assignment.last_order_at && (
+                                                    <p className="text-xs text-emerald-400/80 mt-1 flex items-center gap-1">
+                                                        <span>📦</span>
+                                                        <span>{t('last_order')}: {new Date(assignment.last_order_at).toLocaleDateString()}</span>
                                                     </p>
                                                 )}
                                                 <div className="flex items-center gap-2 mt-1">
