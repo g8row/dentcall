@@ -56,6 +56,21 @@ export async function middleware(request: NextRequest) {
     // Get token from cookie
     const token = request.cookies.get('auth-token')?.value;
 
+    // Special case: /api/daily-email can be accessed with API key
+    if (!token && path.startsWith('/api/daily-email')) {
+        const apiKey = request.nextUrl.searchParams.get('api_key');
+        const configuredApiKey = process.env.DAILY_EMAIL_API_KEY;
+
+        if (apiKey && configuredApiKey && apiKey === configuredApiKey) {
+            // Bypass JWT check for valid API key
+            const requestHeaders = new Headers(request.headers);
+            requestHeaders.set('x-user-role', 'ADMIN'); // Treat cron as admin
+            return NextResponse.next({
+                request: { headers: requestHeaders },
+            });
+        }
+    }
+
     if (!token) {
         return NextResponse.json(
             { success: false, error: 'Authentication required' },
