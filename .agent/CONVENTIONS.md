@@ -6,6 +6,7 @@
 - Define interfaces for all data structures
 - Use `type` for unions, `interface` for objects
 - Avoid `any` - use proper types or `unknown`
+- Export shared types from `src/lib/db.ts`
 
 ## React Components
 
@@ -38,7 +39,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getSession } from '@/lib/auth';
 
-// Always check authentication first
+// Note: Middleware handles basic auth, but routes still check session for user data
 export async function GET(request: NextRequest) {
     const session = await getSession();
     if (!session) {
@@ -56,6 +57,41 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: results });
 }
 ```
+
+## API Response Standardization
+
+Use the helpers from `src/lib/api-response.ts`:
+
+```typescript
+import { successResponse, errorResponse, paginatedResponse } from '@/lib/api-response';
+
+// Success
+return successResponse(data);
+
+// Error
+return errorResponse('Something went wrong', 500);
+
+// Paginated
+return paginatedResponse(items, page, limit, total);
+```
+
+## Request Validation (Zod)
+
+Use validators from `src/lib/validation.ts`:
+
+```typescript
+import { validateBody, logCallSchema } from '@/lib/validation';
+
+export async function POST(request: NextRequest) {
+    const validation = await validateBody(request, logCallSchema);
+    if (!validation.success) return validation.response;
+    
+    const { dentist_id, outcome, notes } = validation.data;
+    // ... use validated data
+}
+```
+
+Available schemas: `loginSchema`, `createUserSchema`, `updateUserSchema`, `createDentistSchema`, `updateDentistSchema`, `logCallSchema`, `updateCallSchema`, `generateScheduleSchema`, `resetPasswordSchema`, `addPhoneSchema`.
 
 ## Database Operations
 
@@ -136,3 +172,10 @@ try {
     );
 }
 ```
+
+## Testing
+
+- Framework: Vitest + Testing Library
+- Tests in `src/__tests__/`
+- Run: `npm test` (watch) or `npm run test:run` (single)
+- Coverage: `npm run test:coverage`

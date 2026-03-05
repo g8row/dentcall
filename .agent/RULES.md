@@ -68,6 +68,8 @@ if (!session || session.role !== 'ADMIN') {
 }
 ```
 
+Note: Middleware handles basic auth at the edge, but route handlers still verify session for user data.
+
 ### 6. Virtual Regions Awareness
 
 **When modifying schedule-related code, remember:**
@@ -82,27 +84,37 @@ if (!session || session.role !== 'ADMIN') {
 - They're excluded from geographic region counts
 - Virtual regions show them separately
 
-### 8. Build Verification
+### 8. Terminal Outcomes
+
+**These outcomes remove dentists from future scheduling:**
+- `INTERESTED`
+- `NOT_INTERESTED`
+- `ORDER_TAKEN`
+
+Non-terminal outcomes (`NO_ANSWER`, `CALLBACK`) allow re-scheduling after exclude days.
+
+### 9. Build Verification
 
 **After making code changes:**
 1. Run `npm run build` to verify no TypeScript errors
 2. Check for lint warnings
 3. Test affected functionality
 
-### 9. Problems Panel Check
+### 10. Problems Panel Check
 
 **Before saying work is finished:**
 - Check the VS Code Problems panel and resolve any remaining errors
 - If any errors remain, call them out explicitly
 
-### 10. Interface Consistency
+### 11. Interface Consistency
 
 **Keep interface definitions in sync:**
 - Same User/Caller interface across components
 - Include `display_name?: string | null` in all user-related interfaces
 - Match API response shapes
+- Types exported from `src/lib/db.ts`
 
-### 11. Commit Hygiene
+### 12. Commit Hygiene
 
 **Avoid committing:**
 - Database files (`*.db`, `*.db-wal`, `*.db-shm`)
@@ -110,13 +122,29 @@ if (!session || session.role !== 'ADMIN') {
 - Python scripts (data processing)
 - `.env` files
 
+### 13. Use Zod Validation
+
+**For new API endpoints, always:**
+1. Create a Zod schema in `src/lib/validation.ts`
+2. Use `validateBody()` or `validateQuery()` helpers
+3. Return structured validation errors
+
+### 14. API Response Format
+
+**Use standardized responses from `src/lib/api-response.ts`:**
+- `successResponse(data)` for successful operations
+- `errorResponse(message, statusCode)` for errors
+- `paginatedResponse(items, page, limit, total)` for lists
+
 ## Quick Reference
 
 ### Common Files to Check:
-- `src/lib/db.ts` - Database schema
+- `src/lib/db.ts` - Database schema & types
 - `src/lib/translations.tsx` - All UI text
+- `src/lib/validation.ts` - Zod schemas
 - `src/app/api/*/route.ts` - API endpoints
 - `src/components/*` - Reusable UI
+- `src/middleware.ts` - Auth middleware
 
 ### Common Patterns:
 ```typescript
@@ -129,9 +157,13 @@ const result = db.prepare('SELECT * FROM table WHERE id = ?').get(id);
 
 // Translation usage
 const { t } = useTranslation();
+
+// Zod validation
+const validation = await validateBody(request, schema);
+if (!validation.success) return validation.response;
 ```
 
-### 8. Git Commit Messages
+### Git Commit Messages
 
 **Use conventional commit format** matching the existing project history:
 

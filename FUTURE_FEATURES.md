@@ -11,6 +11,13 @@ This document outlines planned features, their implementation approach, and prio
 - [x] **Global Add Dentist Action**: Make the "Add Dentist" button actionable from the main navigation or dashboard.
 - [x] **Database Management Tab**: View/Edit raw dentist records and manage `preferred_caller_id` directly.
 - [x] **Periodic Backups**: Automated daily database backup system with rotation (keeps last 30).
+- [x] **Centralized Auth Middleware**: Edge-compatible JWT verification in `middleware.ts` with role-based route protection.
+- [x] **API Response Standardization**: `api-response.ts` with `successResponse`, `errorResponse`, `paginatedResponse` helpers.
+- [x] **Zod Request Validation**: Comprehensive schemas in `validation.ts` with `validateBody`/`validateQuery` helpers.
+- [x] **Daily Summaries**: Callers submit daily reports, admins view/export, email digest system.
+- [x] **Campaign Duplication**: Duplicate button on campaigns pre-fills schedule planner.
+- [x] **EIK/BULSTAT Support**: Business registration numbers on dentists, editable by callers.
+- [x] **Assignment Notes (Save Draft)**: Callers can save draft notes before making calls.
 
 ---
 
@@ -112,15 +119,22 @@ This document outlines planned features, their implementation approach, and prio
 ---
 
 ### 7. Email/SMS Notifications
-**Status**: Future consideration
+**Status**: Partially implemented (Email daily digests)
 **Description**: Notify admin of daily summaries, alert callers of priority callbacks.
-**Implementation Plan**:
-1. Integrate with email provider (SendGrid, Resend)
-2. Daily digest cron job
-3. Callback reminder notifications
-4. Low activity alerts
+**What's Done**:
+- ✅ Email infrastructure (`email.ts`) with SMTP/nodemailer support
+- ✅ Daily summary email generation with HTML template
+- ✅ Manual trigger from admin dashboard
+- ✅ API endpoint with API key auth for cron jobs
+- ✅ Console fallback when email not configured
 
-**Estimated Effort**: 10-15 hours
+**Remaining**:
+1. Callback reminder notifications
+2. Low activity alerts
+3. SMS integration
+4. Viber messaging (researched — see notes below)
+
+**Estimated Remaining Effort**: 8-10 hours
 
 ---
 
@@ -217,17 +231,17 @@ This document outlines planned features, their implementation approach, and prio
 
 ## 🔧 Technical Improvements
 
-### 15. API Response Standardization
-**Description**: Standardize all API error/success responses with consistent structure.
+### ~~15. API Response Standardization~~ ✅ DONE
+**Description**: Standardized in `src/lib/api-response.ts` with `successResponse`, `errorResponse`, `paginatedResponse`.
 
-### 16. Request Validation Layer
-**Description**: Use Zod schemas for request body validation across all routes.
+### ~~16. Request Validation Layer~~ ✅ DONE
+**Description**: Zod schemas in `src/lib/validation.ts` with `validateBody`/`validateQuery` helpers.
 
 ### 17. Database Connection Pooling
 **Description**: While SQLite is single-file, consider connection management for concurrency.
 
-### 18. Automated Testing
-**Description**: Add Jest/Vitest tests for API endpoints and critical business logic.
+### ~~18. Automated Testing~~ ✅ PARTIAL
+**Description**: Vitest test suite exists with tests for api-response, auth, logger, rate-limit, and validation.
 
 ### 19. Error Monitoring
 **Description**: Integrate Sentry or similar for production error tracking.

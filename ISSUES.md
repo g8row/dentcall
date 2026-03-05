@@ -89,6 +89,10 @@
 **Status**: Fixed in commit `5784655`
 **Solution**: Created logger utility with log levels. Debug/info logs hidden in production (only warn/error shown). Applied to scheduler, db, backup modules.
 
+### ~~15. No Centralized Auth~~ ✅ FIXED
+**Location**: `src/middleware.ts`
+**Status**: Fixed — Edge-compatible JWT middleware with role-based route protection.
+
 ---
 
 ## 📋 Data Quality Notes

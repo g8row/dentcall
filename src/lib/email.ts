@@ -1,4 +1,5 @@
 import { format } from 'date-fns';
+import nodemailer from 'nodemailer';
 
 export interface EmailConfig {
   from: string;
@@ -9,60 +10,25 @@ export interface EmailConfig {
 }
 
 /**
- * Send an email using a configured email service
- * This is a placeholder implementation that logs to console.
+ * Send an email using nodemailer with SMTP configuration.
+ * Falls back to console logging if SMTP is not configured.
  * 
- * To use a real email service, you need to:
- * 1. Install nodemailer: npm install nodemailer
- * 2. Configure SMTP settings in environment variables:
- *    - EMAIL_HOST (e.g., smtp.gmail.com)
- *    - EMAIL_PORT (e.g., 587)
- *    - EMAIL_USER (your email address)
- *    - EMAIL_PASSWORD (app password or regular password)
- *    - EMAIL_FROM (sender email address)
- *    - EMAIL_TO (comma-separated list of recipient emails)
- * 
- * Example implementation with nodemailer:
- * ```
- * import nodemailer from 'nodemailer';
- * 
- * const transporter = nodemailer.createTransport({
- *   host: process.env.EMAIL_HOST,
- *   port: parseInt(process.env.EMAIL_PORT || '587'),
- *   secure: false,
- *   auth: {
- *     user: process.env.EMAIL_USER,
- *     pass: process.env.EMAIL_PASSWORD,
- *   },
- * });
- * 
- * await transporter.sendMail(config);
- * ```
+ * Required environment variables:
+ *   EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASSWORD
+ *   EMAIL_FROM, EMAIL_TO (comma-separated)
  */
 export async function sendEmail(config: EmailConfig): Promise<void> {
-  // Check if email is configured
   const isConfigured = process.env.EMAIL_HOST && process.env.EMAIL_USER;
 
   if (!isConfigured) {
-    console.log('📧 Email not configured. Email would be sent:');
+    console.log('📧 Email not configured (set EMAIL_HOST + EMAIL_USER). Preview:');
     console.log(`   From: ${config.from}`);
     console.log(`   To: ${config.to.join(', ')}`);
     console.log(`   Subject: ${config.subject}`);
     console.log(`   HTML Length: ${config.html.length} chars`);
-    console.log(`   Preview: ${config.text?.substring(0, 200) || 'No text preview'}...`);
     return;
   }
 
-  // TODO: Implement actual email sending with nodemailer
-  // For now, just log that we would send an email
-  console.log('📧 Email would be sent (nodemailer not installed):');
-  console.log(`   From: ${config.from}`);
-  console.log(`   To: ${config.to.join(', ')}`);
-  console.log(`   Subject: ${config.subject}`);
-
-  // Uncomment when nodemailer is installed:
-  /*
-  const nodemailer = require('nodemailer');
   const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
     port: parseInt(process.env.EMAIL_PORT || '587'),
@@ -73,9 +39,15 @@ export async function sendEmail(config: EmailConfig): Promise<void> {
     },
   });
 
-  await transporter.sendMail(config);
-  console.log('✅ Email sent successfully');
-  */
+  await transporter.sendMail({
+    from: config.from,
+    to: config.to.join(', '),
+    subject: config.subject,
+    html: config.html,
+    text: config.text,
+  });
+
+  console.log('✅ Email sent successfully to:', config.to.join(', '));
 }
 
 /**

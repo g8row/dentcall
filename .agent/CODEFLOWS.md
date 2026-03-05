@@ -15,6 +15,19 @@
    - CALLER → /caller
 ```
 
+### Middleware (Centralized Auth)
+
+```
+Every API request hits middleware.ts:
+
+1. Check if route is public → pass through
+2. Extract JWT from auth-token cookie
+3. Verify with jose (Edge-compatible, no DB access)
+4. Check admin-only routes → enforce role
+5. Inject x-user-id and x-user-role headers
+6. Pass to route handler
+```
+
 ## Schedule Generation Flow
 
 ```
@@ -23,7 +36,7 @@ Admin clicks "Generate Schedule" in SchedulePlanner:
 1. POST /api/assignments
    ├─ Filters: regions, cities, callers, excludeDays
    ├─ Query eligible dentists:
-   │   - Not INTERESTED/NOT_INTERESTED (terminal states)
+   │   - Not INTERESTED/NOT_INTERESTED/ORDER_TAKEN (terminal states)
    │   - Not called within excludeDays
    │   - Match region/city filters
    │
@@ -41,6 +54,16 @@ Admin clicks "Generate Schedule" in SchedulePlanner:
 2. Calendar updates to show new assignments
 ```
 
+### Campaign Duplication Flow
+
+```
+Admin clicks "Duplicate" on a campaign:
+
+1. Campaign regions, cities, and callers are extracted
+2. SchedulePlanner opens with pre-filled selections
+3. Admin can adjust and generate new schedule
+```
+
 ## Call Logging Flow
 
 ```
@@ -48,6 +71,7 @@ Caller clicks "Make Call" then selects outcome:
 
 1. POST /api/calls
    ├─ Create call record
+   ├─ Sync assignment notes to call (if draft notes exist)
    ├─ Update assignment (completed = 1)
    └─ Dentist status changes based on outcome:
        - INTERESTED → removed from future scheduling
@@ -55,9 +79,34 @@ Caller clicks "Make Call" then selects outcome:
        - ORDER_TAKEN → removed from future scheduling
        - NO_ANSWER → eligible again after excludeDays
        - CALLBACK → prioritized in next schedule
-       - OTHER → varies
 
 2. UI refreshes remaining assignments
+```
+
+### Edit Call Flow
+
+```
+Caller can edit a previously logged call:
+
+1. PATCH /api/calls/[id]
+   ├─ Update outcome and/or notes
+   └─ Original dentist_id preserved
+
+2. Changed outcome affects future scheduling eligibility
+```
+
+## Save Draft (Assignment Notes) Flow
+
+```
+Caller writes notes before making a call:
+
+1. PATCH /api/assignments/[id]
+   ├─ Save notes field on assignment
+   └─ UI shows "Draft saved" confirmation
+
+2. When call is logged:
+   ├─ Assignment notes synced to call record
+   └─ Assignment marked as completed
 ```
 
 ## Re-queuing Logic (Exclude Days)
@@ -96,10 +145,12 @@ Distribution order:
 
 3. Tab-specific data:
    - Stats tab → StatsDashboard component
-   - Calendar tab → week/month view, SchedulePlanner
+   - Calendar tab → week/month view with day detail modals
+   - Planner tab → SchedulePlanner component
    - Database tab → DentistManager component
-   - Users tab → user CRUD
+   - Users tab → user CRUD (create, edit, reset password, deactivate)
    - Data tab → export/import, delete history
+   - Daily Summaries tab → DailySummariesView component
 ```
 
 ## Data Flow: Caller Dashboard
@@ -112,9 +163,44 @@ Distribution order:
    GET /api/assignments?caller_id={userId}&date={today}
    
 3. For each assignment, dentist info is included
-4. Caller clicks "Make Call" → outcome modal
-5. Submit outcome → POST /api/calls
-6. Assignment moves to History tab
+4. Caller can:
+   - Save draft notes (PATCH assignment)
+   - Make call → outcome modal → POST /api/calls
+   - Edit previous call → PATCH /api/calls/[id]
+   - Update EIK on dentist → PATCH /api/dentists/[id]
+5. Assignment moves to History tab
+6. Daily summary link in header → /caller/daily-summary
+```
+
+## Daily Summary Flow
+
+```
+Caller submits daily summary:
+
+1. Navigate to /caller/daily-summary
+2. Page loads:
+   ├─ GET /api/calls?caller_id={userId}&date={today}
+   ├─ GET /api/daily-summaries?summary_date={today}
+   └─ Pre-fill if existing summary found
+
+3. Submit → POST /api/daily-summaries
+   ├─ Creates or updates summary for date
+   ├─ Stores summary_notes, call_count, call_ids
+   └─ UNIQUE(caller_id, summary_date) prevents duplicates
+```
+
+## Daily Email Flow
+
+```
+Admin triggers email or cron hits endpoint:
+
+1. GET/POST /api/daily-email?date={date}
+   ├─ Auth: Admin session OR api_key query param
+   ├─ Fetch all calls for date with outcomes
+   ├─ Fetch all daily_summaries for date
+   ├─ Generate HTML email via generateDailySummaryEmail()
+   ├─ Send via sendEmail() (nodemailer or console fallback)
+   └─ Return email preview data
 ```
 
 ## Migration Pattern

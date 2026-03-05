@@ -93,6 +93,7 @@ All UI uses: `display_name || username` (fallback to username if display_name is
 - Add/Edit dentist modals (preferred caller dropdown)
 - DentistManager preferred caller column
 - Assignment API responses
+- Daily summaries caller names
 
 ## Call Outcome States
 
@@ -103,7 +104,6 @@ All UI uses: `display_name || username` (fallback to username if display_name is
 | `ORDER_TAKEN` | Yes | Never |
 | `NO_ANSWER` | No | After X days |
 | `CALLBACK` | No | Prioritized next schedule |
-| `OTHER` | No | After X days |
 
 ## EIK/BULSTAT
 
@@ -111,6 +111,43 @@ Bulgarian business registration number for dental practices:
 - Field: `eik` in dentists table
 - Used for business verification
 - Optional field in add/edit forms
+- Editable by callers directly from their dashboard
+
+## Assignment Notes (Save Draft)
+
+Callers can save draft notes on assignments before making a call:
+- Field: `notes` TEXT column on `assignments` table
+- Notes are saved via PATCH to the assignment
+- When a call is logged, assignment notes are synced to the call record
+- Visible in the caller UI as a "Save Draft" button
+
+## Campaign Management
+
+### Campaign Lifecycle:
+- **ACTIVE** → assignments being generated and worked
+- **COMPLETED** → manually marked complete
+- **CANCELLED** → cancellation also deletes future uncompleted assignments
+
+### Campaign Duplication:
+Admins can duplicate a campaign, pre-filling the schedule planner with the original campaign's regions, cities, and callers.
+
+### Campaign Schema:
+```sql
+campaigns (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  start_date TEXT NOT NULL,
+  end_date TEXT NOT NULL,
+  target_regions TEXT,    -- JSON array
+  target_cities TEXT,     -- JSON array
+  target_callers TEXT,    -- JSON array
+  status TEXT DEFAULT 'ACTIVE',
+  created_at TEXT,
+  completed_at TEXT,
+  cancelled_at TEXT
+)
+```
 
 ## Daily Summaries
 
@@ -120,7 +157,7 @@ Callers can submit daily work summaries that are visible to admins.
 
 **Submission (`/caller/daily-summary`):**
 - Free-text summary of work day
-- Automatic attachment of calls made
+- Automatic attachment of calls made that day
 - Can update existing summary for same date
 - Accessible via button in caller dashboard header
 
@@ -170,4 +207,3 @@ Requires environment variables:
 - `DAILY_EMAIL_API_KEY` (for cron job authentication)
 
 See `docs/DAILY_EMAIL.md` for detailed setup instructions.
-

@@ -58,9 +58,12 @@ graph TD
 
 ## 🔧 Recommended Refactors
 
-### 1. **Centralize Authentication with Middleware**
+### ~~1. **Centralize Authentication with Middleware**~~ ✅ DONE
 
-**Current State**: Every API route calls `getSession()` and handles auth individually.
+**Implemented** in `src/middleware.ts` — Edge-compatible JWT verification with role-based route protection.
+- Public routes: `/api/auth/login`, `/api/auth/session`
+- Admin-only routes: `/api/admin/*`, `/api/users/*`, `/api/campaigns/*`
+- Injects `x-user-id` and `x-user-role` headers for downstream handlers
 
 **Problem**: 
 - Code duplication (~15 routes with identical auth checks)
@@ -175,9 +178,9 @@ export async function POST(request: NextRequest) {
 
 ---
 
-### 3. **Standardize API Response Format**
+### ~~3. **Standardize API Response Format**~~ ✅ DONE
 
-**Current State**: Mixed response formats across endpoints.
+**Implemented** in `src/lib/api-response.ts` with `successResponse`, `errorResponse`, `paginatedResponse` helpers.
 
 **Problem**:
 - Inconsistent client-side error handling
@@ -232,9 +235,9 @@ export function paginatedResponse<T>(
 
 ---
 
-### 4. **Add Request Validation with Zod**
+### ~~4. **Add Request Validation with Zod**~~ ✅ DONE
 
-**Current State**: Manual validation in routes with basic checks.
+**Implemented** in `src/lib/validation.ts` with comprehensive schemas for all endpoints + `validateBody`/`validateQuery` helpers.
 
 **Problem**:
 - Incomplete validation

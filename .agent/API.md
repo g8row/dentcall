@@ -16,7 +16,7 @@
 | `/api/users` | GET | Admin | List all users |
 | `/api/users` | POST | Admin | Create user. Body: `{username, password, display_name?, role?, daily_target?}` |
 | `/api/users/[id]` | PATCH | Admin | Update user. Body: `{username?, display_name?, password?, role?, daily_target?}` |
-| `/api/users/[id]` | DELETE | Admin | Delete user (cannot delete self) |
+| `/api/users/[id]` | DELETE | Admin | Delete user (cannot delete self). Deactivates if user has call history. |
 
 ## Dentists (`/api/dentists/`)
 
@@ -25,8 +25,8 @@
 | `/api/dentists` | GET | Any | List dentists. Query: `page, limit, search, region, city` |
 | `/api/dentists` | POST | Admin | Create dentist |
 | `/api/dentists/[id]` | GET | Any | Get single dentist with call history |
-| `/api/dentists/[id]` | PATCH | Admin | Update dentist |
-| `/api/dentists/[id]` | DELETE | Admin | Delete dentist |
+| `/api/dentists/[id]` | PATCH | Admin/Caller | Update dentist (callers can update EIK only) |
+| `/api/dentists/[id]` | DELETE | Admin | Delete dentist (force-deletes even with call history) |
 | `/api/dentists/import` | POST | Admin | Import dentists from JSON |
 | `/api/dentists/regions` | GET | Any | Get unique regions |
 | `/api/dentists/locations` | GET | Any | Get cities for regions. Query: `regions` |
@@ -35,25 +35,28 @@
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
-| `/api/calls` | GET | Any | List calls. Query: `dentist_id?, caller_id?, date?` |
-| `/api/calls` | POST | Any | Log call. Body: `{dentist_id, outcome, notes?}` |
+| `/api/calls` | GET | Any | List calls. Query: `dentist_id?, caller_id?, date?`. Callers only see own calls. |
+| `/api/calls` | POST | Any | Log call. Body: `{dentist_id, outcome, notes?}`. Marks assignment as completed. |
 | `/api/calls/[id]` | PATCH | Any | Update call outcome/notes |
+
+**Outcomes**: `INTERESTED`, `NOT_INTERESTED`, `NO_ANSWER`, `CALLBACK`, `ORDER_TAKEN`
 
 ## Assignments (`/api/assignments/`)
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
 | `/api/assignments` | GET | Any | Get assignments. Query: `date?, caller_id?, start_date?, end_date?` |
-| `/api/assignments` | POST | Admin | Generate schedule. Body: `{start_date, days, regions?, cities?, callerIds?, excludeDays?, appendMode?}` |
+| `/api/assignments` | POST | Admin | Generate schedule. Body: `{startDate, days, regions, cities?, callers?, excludeDays?, append?}` |
 | `/api/assignments` | DELETE | Admin | Delete schedule. Query: `date` |
+| `/api/assignments/[id]` | PATCH | Any | Update assignment notes (save draft) |
 
 ## Campaigns (`/api/campaigns/`)
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
 | `/api/campaigns` | GET | Admin | List all campaigns with stats |
-| `/api/campaigns` | POST | Admin | Create campaign |
-| `/api/campaigns/[id]` | PATCH | Admin | Update campaign status |
+| `/api/campaigns` | POST | Admin | Create campaign. Body: `{name, description?, start_date, end_date, target_regions?, target_cities?, target_callers?}` |
+| `/api/campaigns/[id]` | PATCH | Admin | Update campaign status. Cancel also deletes future uncompleted assignments. |
 | `/api/campaigns/[id]` | DELETE | Admin | Delete campaign |
 
 ## Statistics (`/api/stats/`)
@@ -63,7 +66,21 @@
 | `/api/stats/dashboard` | GET | Any | Overall dashboard stats |
 | `/api/stats/outcomes` | GET | Any | Outcome distribution |
 | `/api/stats/regions` | GET | Any | Stats by region |
-| `/api/stats/schedule-planner` | GET | Admin | Preview data for scheduler |
+| `/api/stats/schedule-planner` | GET | Admin | Preview data for scheduler (region counts, preferred callers) |
+
+## Daily Summaries (`/api/daily-summaries/`)
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/daily-summaries` | GET | Any | Get daily summaries. Query: `caller_id?, start_date?, end_date?, summary_date?`. Callers see own, admins see all. |
+| `/api/daily-summaries` | POST | Any | Submit/update daily summary. Body: `{summary_date, summary_notes, call_ids?}` |
+
+## Daily Email (`/api/daily-email/`)
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/daily-email` | GET | Admin or API Key | Send daily summary email. Query: `date?, api_key?` |
+| `/api/daily-email` | POST | Admin or API Key | Same as GET. Generates HTML report with stats + caller summaries. |
 
 ## Data Management (`/api/data/`)
 
@@ -71,25 +88,11 @@
 |----------|--------|------|-------------|
 | `/api/data` | DELETE | Admin | Delete history. Query: `type=calls|assignments|all` |
 
-## Daily Summaries (`/api/daily-summaries/`)
-
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/api/daily-summaries` | GET | Any | Get daily summaries. Query: `caller_id?, start_date?, end_date?, summary_date?` |
-| `/api/daily-summaries` | POST | Any | Submit daily summary. Body: `{summary_date, summary_notes, call_ids?}` |
-
-## Daily Email (`/api/daily-email/`)
-
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/api/daily-email` | GET | Admin or API Key | Send daily summary email. Query: `date?, api_key?` |
-| `/api/daily-email` | POST | Admin or API Key | Same as GET |
-
 ## Export (`/api/export/`)
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
-| `/api/export` | GET | Admin | Export data. Query: `type=dentists|calls|stats&startDate?&endDate?` |
+| `/api/export` | GET | Admin | Export data to Excel. Query: `type=dentists|calls|stats&startDate?&endDate?` |
 
 ## Admin (`/api/admin/`)
 
@@ -106,5 +109,8 @@
 { dentists: [...], pagination: { page, totalPages, total } }
 
 // Error
-{ error: "Error message" }  // with status code 400/401/403/500
+{ success: false, error: "Error message" }  // with status code 400/401/403/500
+
+// Validation Error
+{ success: false, error: "Validation failed", details: [{ field: "...", message: "..." }] }
 ```

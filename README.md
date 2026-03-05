@@ -7,21 +7,26 @@ A web application for managing dental clinic cold calling campaigns. Built with 
 ### Admin Dashboard
 - **Statistics & Analytics**: Real-time KPI cards, Daily Performance Table (calls, interest rate, success rate), and Outcome Distribution charts.
 - **Calendar Management**: Interactive Weekly and Monthly views with detailed day breakdowns via modal popups.
-- **Schedule Planner**: Advanced assignment generation with region filtering and workload balancing.
-- **User Management**: Manage callers and set daily targets.
+- **Schedule Planner**: Advanced assignment generation with region filtering, workload balancing, and campaign duplication.
+- **User Management**: Manage callers, set daily targets, reset passwords, deactivate users.
 - **Data Export/Import**: Seamlessly import new dentist data and export reports to Excel.
+- **Daily Summaries**: View caller daily reports, export to CSV, send daily email digests.
 
 ### Caller Interface
 - **Mobile-Optimized**: Responsive design for on-the-go calling.
 - **Efficient Workflow**: Streamlined daily assignment queue with quick outcome recording.
-- **History & Notes**: Access previous interaction history and add detailed notes.
+- **History & Notes**: Access previous interaction history, save draft notes, and edit previous calls.
 - **Progress Tracking**: Real-time progress bars against daily targets.
+- **Daily Summary**: Submit end-of-day work summaries with automatic call attachment.
+- **EIK Management**: Update dentist business registration numbers inline.
 
 ### Data Management
 - Region and city-based dentist organization
 - Call history with full audit trail
 - Schedule generation with smart distribution
 - Coverage and interest rate analytics
+- Preferred caller system with virtual regions
+- Campaign management with lifecycle tracking
 
 ## Tech Stack
 
@@ -84,6 +89,13 @@ The SQLite database is stored in a Docker volume for persistence.
 | `CORS_ORIGIN` | No | `*` (dev) | Allowed CORS origin. Set to your frontend domain in production (e.g., `https://app.example.com`) |
 | `LOG_LEVEL` | No | `warn` (prod), `debug` (dev) | Logging level: `debug`, `info`, `warn`, `error` |
 | `INSECURE_COOKIES` | No | `false` | Set to `true` to disable secure cookies (for local HTTP development) |
+| `EMAIL_HOST` | No | - | SMTP host for daily emails (e.g., `smtp.gmail.com`) |
+| `EMAIL_PORT` | No | `587` | SMTP port |
+| `EMAIL_USER` | No | - | SMTP username |
+| `EMAIL_PASSWORD` | No | - | SMTP password / app password |
+| `EMAIL_FROM` | No | - | Sender email address |
+| `EMAIL_TO` | No | - | Comma-separated recipient emails |
+| `DAILY_EMAIL_API_KEY` | No | - | API key for cron-triggered daily emails |
 
 ### Example `.env` file:
 
@@ -110,32 +122,41 @@ INSECURE_COOKIES=true
 ```
 src/
 ├── app/
-│   ├── admin/           # Admin dashboard pages
-│   ├── api/             # API routes
+│   ├── admin/           # Admin dashboard
+│   ├── api/             # API routes (auth, users, dentists, calls, etc.)
 │   ├── caller/          # Caller interface
+│   │   └── daily-summary/  # Daily summary submission
+│   ├── reset-password/  # Password reset flow
 │   └── page.tsx         # Login page
 ├── components/          # Reusable UI components
-└── lib/                 # Database and utilities
+├── lib/                 # Database, auth, validation, email & utilities
+├── __tests__/           # Vitest test suite
+└── middleware.ts        # Centralized auth middleware
 
 data/
-└── cold-caller.db       # SQLite database (created on first run)
+├── cold-caller.db       # SQLite database (created on first run)
+└── backups/             # Automated daily backups
 
 scripts/
-└── import-dentists.ts   # Data import utilities
+└── import-data.ts       # Data import utilities
 ```
 
 ## API Endpoints
 
 | Endpoint | Description |
 |----------|-------------|
-| `/api/auth/*` | Authentication (login, logout, session) |
-| `/api/users/*` | User management |
-| `/api/dentists/*` | Dentist data and locations |
-| `/api/assignments` | Schedule management |
-| `/api/calls/*` | Call recording |
+| `/api/auth/*` | Authentication (login, logout, session, reset-password) |
+| `/api/users/*` | User management (CRUD, deactivate, reset password) |
+| `/api/dentists/*` | Dentist data, locations, regions, import |
+| `/api/assignments` | Schedule generation & management |
+| `/api/calls/*` | Call recording & editing |
 | `/api/stats/*` | Statistics and analytics |
 | `/api/export` | Excel export |
 | `/api/campaigns` | Campaign management |
+| `/api/daily-summaries` | Daily work summaries |
+| `/api/daily-email` | Daily email report generation |
+| `/api/admin/backup` | Database backup |
+| `/api/data` | Data cleanup (delete history) |
 
 ## Localization
 
