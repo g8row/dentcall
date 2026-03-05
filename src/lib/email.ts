@@ -80,98 +80,115 @@ export function generateDailySummaryEmail(data: {
       <head>
         <meta charset="utf-8">
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #059669 0%, #06b6d4 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; }
-          .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 20px 0; }
-          .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; text-align: center; }
-          .stat-value { font-size: 28px; font-weight: bold; color: #059669; }
-          .stat-label { font-size: 12px; color: #64748b; text-transform: uppercase; margin-top: 5px; }
-          .summary-card { background: #ffffff; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-          .caller-name { font-size: 18px; font-weight: bold; color: #0f172a; margin-bottom: 10px; }
-          .call-count { display: inline-block; background: #06b6d4; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; margin-bottom: 10px; }
-          .notes { color: #475569; white-space: pre-wrap; background: #f8fafc; padding: 15px; border-radius: 6px; }
-          .logs { background: #1e293b; color: #e2e8f0; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 11px; max-height: 300px; overflow-y: auto; }
-          .footer { text-align: center; color: #94a3b8; font-size: 12px; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
-          h2 { color: #0f172a; border-bottom: 2px solid #059669; padding-bottom: 10px; margin-top: 30px; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; line-height: 1.6; color: #f1f5f9; background-color: #020617; max-width: 800px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border: 1px solid #334155; padding: 25px 30px; border-radius: 12px; margin-bottom: 30px; border-left: 4px solid #06b6d4; }
+          .header-title { color: #f8fafc; font-size: 24px; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 10px; }
+          .header-title span { color: #06b6d4; }
+          .header-date { color: #94a3b8; margin: 8px 0 0 0; font-size: 15px; }
+          
+          h2 { color: #f8fafc; font-size: 20px; font-weight: 600; margin: 35px 0 15px 0; border-bottom: 1px solid #334155; padding-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+          h2 span { color: #06b6d4; }
+          
+          .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; margin: 20px 0; }
+          .stat-card { background: #0f172a; border: 1px solid #334155; padding: 16px; border-radius: 10px; text-align: center; }
+          .stat-value { font-size: 28px; font-weight: 700; color: #f8fafc; line-height: 1; margin-bottom: 6px; }
+          .stat-value.primary { color: #06b6d4; }
+          .stat-value.success { color: #10b981; }
+          .stat-value.warning { color: #f59e0b; }
+          .stat-label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+          
+          .summary-card { background: #0f172a; border: 1px solid #334155; padding: 20px; border-radius: 12px; margin-bottom: 16px; }
+          .summary-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #1e293b; padding-bottom: 15px; }
+          .caller-name { font-size: 16px; font-weight: 600; color: #f8fafc; display: flex; align-items: center; gap: 8px; }
+          .caller-name::before { content: "👤"; font-size: 14px; }
+          .call-count { background: #06b6d4; color: #ffffff; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+          .notes { color: #cbd5e1; white-space: pre-wrap; background: #1e293b; padding: 16px; border-radius: 8px; font-size: 14px; border: 1px solid #334155; }
+          
+          .logs { background: #1e293b; color: #cbd5e1; padding: 16px; border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; max-height: 300px; overflow-y: auto; border: 1px solid #334155; border-left: 3px solid #f59e0b; }
+          
+          .footer { text-align: center; color: #64748b; font-size: 12px; margin-top: 40px; padding-top: 25px; border-top: 1px solid #1e293b; }
+          .footer p { margin: 5px 0; }
         </style>
       </head>
       <body>
         <div class="header">
-          <h1 style="margin: 0;">📊 Daily Summary Report</h1>
-          <p style="margin: 10px 0 0 0; opacity: 0.9;">${format(new Date(data.date), 'EEEE, MMMM d, yyyy')}</p>
+          <h1 class="header-title"><span>DentCall</span> Дневен Отчет</h1>
+          <p class="header-date">${format(new Date(data.date), 'EEEE, d MMMM yyyy г.')}</p>
         </div>
 
-        <h2>📈 Statistics</h2>
+        <h2><span>📈</span> Статистика за деня</h2>
         <div class="stats">
           <div class="stat-card">
-            <div class="stat-value">${totalCalls}</div>
-            <div class="stat-label">Total Calls</div>
+            <div class="stat-value primary">${totalCalls}</div>
+            <div class="stat-label">Общо Обаждания</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value">${data.stats.interested}</div>
-            <div class="stat-label">Interested</div>
+            <div class="stat-value success">${data.stats.interested}</div>
+            <div class="stat-label">Заинтересовани</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value">${interestedRate}%</div>
-            <div class="stat-label">Success Rate</div>
+            <div class="stat-value success">${interestedRate}%</div>
+            <div class="stat-label">Успеваемост</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value">${data.stats.callback}</div>
-            <div class="stat-label">Callbacks</div>
+            <div class="stat-value warning">${data.stats.callback}</div>
+            <div class="stat-label">За Преобаждане</div>
           </div>
         </div>
 
-        <h2>📝 Caller Summaries</h2>
+        <h2><span>📝</span> Обобщения от Операторите</h2>
         ${data.summaries.length > 0 ? data.summaries.map(summary => `
           <div class="summary-card">
-            <div class="caller-name">${summary.caller_name}</div>
-            <span class="call-count">${summary.call_count} calls</span>
+            <div class="summary-header">
+              <div class="caller-name">${summary.caller_name}</div>
+              <span class="call-count">${summary.call_count} обаждания</span>
+            </div>
             <div class="notes">${summary.summary_notes}</div>
           </div>
-        `).join('') : '<p style="color: #94a3b8;">No summaries submitted for this day.</p>'}
+        `).join('') : '<p style="color: #64748b; font-style: italic; background: #0f172a; padding: 20px; border-radius: 8px; border: 1px dashed #334155; text-align: center;">Няма подадени обобщения за този ден.</p>'}
 
         ${data.logs && data.logs.length > 0 ? `
-          <h2>🔍 System Logs</h2>
+          <h2><span>🔍</span> Системни Известия</h2>
           <div class="logs">
-            ${data.logs.join('\n')}
+            ${data.logs.join('<br>')}
           </div>
         ` : ''}
 
         <div class="footer">
-          <p>This is an automated daily summary from DentCall Cold Caller System</p>
-          <p>Generated at ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}</p>
+          <p>Автоматичен ежедневен отчет от DentCall Cold Caller System</p>
+          <p>Генериран на ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}</p>
         </div>
       </body>
     </html>
   `;
 
   const text = `
-DAILY SUMMARY REPORT - ${format(new Date(data.date), 'EEEE, MMMM d, yyyy')}
+ДНЕВЕН ОТЧЕТ - ${format(new Date(data.date), 'EEEE, d MMMM yyyy г.')}
 
-STATISTICS:
-- Total Calls: ${totalCalls}
-- Interested: ${data.stats.interested}
-- Not Interested: ${data.stats.not_interested}
-- No Answer: ${data.stats.no_answer}
-- Callbacks: ${data.stats.callback}
-- Orders Taken: ${data.stats.order_taken}
-- Success Rate: ${interestedRate}%
+СТАТИСТИКА:
+- Общо обаждания: ${totalCalls}
+- Заинтересовани: ${data.stats.interested}
+- Незаинтересовани: ${data.stats.not_interested}
+- Няма отговор: ${data.stats.no_answer}
+- За преобаждане: ${data.stats.callback}
+- Направени поръчки: ${data.stats.order_taken}
+- Успеваемост: ${interestedRate}%
 
-CALLER SUMMARIES:
+ОБОБЩЕНИЯ ОТ ОПЕРАТОРИТЕ:
 ${data.summaries.length > 0 ? data.summaries.map(summary => `
-${summary.caller_name} (${summary.call_count} calls):
+👤 ${summary.caller_name} (${summary.call_count} обаждания):
 ${summary.summary_notes}
----
-`).join('\n') : 'No summaries submitted for this day.'}
+-------------------------------------------
+`).join('\n') : 'Няма подадени обобщения за този ден.'}
 
 ${data.logs && data.logs.length > 0 ? `
-SYSTEM LOGS:
+СИСТЕМНИ ИЗВЕСТИЯ:
 ${data.logs.join('\n')}
 ` : ''}
 
 ---
-This is an automated daily summary from DentCall Cold Caller System
-Generated at ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}
+Автоматичен ежедневен отчет от DentCall Cold Caller System
+Генериран на ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}
   `.trim();
 
   return { html, text };
