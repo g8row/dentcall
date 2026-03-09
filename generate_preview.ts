@@ -13,16 +13,26 @@ const mockData = {
         callback: 65,
         order_taken: 4
     },
-    summaries: [
+    callers: [
         {
             caller_name: 'Иван Иванов',
-            call_count: 82,
+            total_calls: 82,
+            interested: 7,
+            not_interested: 24,
+            no_answer: 16,
+            callback: 32,
+            order_taken: 3,
             summary_notes: 'Днес имаше много добри резултати в регион София. Няколко лекари поискаха допълнителна информация за имплантите.\n\nЗабелязах, че сутринта се свързвам по-лесно, докато следобед повечето са в кабинет.'
         },
         {
             caller_name: 'Мария Георгиева',
-            call_count: 74,
-            summary_notes: 'Покрих регионите Пловдив и Варна.\nДвама лекари от Пловдив поискаха среща следващата седмица. Във Варна имаше доста невърнати обаждания, ще ги прехвърля за понеделник.'
+            total_calls: 74,
+            interested: 5,
+            not_interested: 21,
+            no_answer: 14,
+            callback: 33,
+            order_taken: 1,
+            summary_notes: null
         }
     ],
     logs: [

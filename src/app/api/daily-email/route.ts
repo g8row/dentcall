@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { format, subDays } from 'date-fns';
+import { format } from 'date-fns';
 import db from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { sendEmail, generateDailySummaryEmail } from '@/lib/email';
@@ -9,13 +9,13 @@ import { logger } from '@/lib/logger';
 // Can be called manually by admin or triggered by a cron job
 export async function GET(request: NextRequest) {
   const session = await getSession();
-  
+
   // Allow unauthenticated access if proper API key is provided (for cron jobs)
   const apiKey = request.nextUrl.searchParams.get('api_key');
   const configuredApiKey = process.env.DAILY_EMAIL_API_KEY;
-  
-  const isAuthorized = 
-    (session && session.role === 'ADMIN') || 
+
+  const isAuthorized =
+    (session && session.role === 'ADMIN') ||
     (apiKey && configuredApiKey && apiKey === configuredApiKey);
 
   if (!isAuthorized) {
@@ -25,11 +25,11 @@ export async function GET(request: NextRequest) {
   try {
     // Get date parameter (default to yesterday)
     const dateParam = request.nextUrl.searchParams.get('date');
-    const targetDate = dateParam || format(subDays(new Date(), 1), 'yyyy-MM-dd');
+    const targetDate = dateParam || format(new Date(), 'yyyy-MM-dd');
 
     logger.info('EMAIL', `Generating daily summary email for date: ${targetDate}`);
 
-    // Get daily summaries from callers
+    // Get daily summaries from callers (those who submitted one)
     const summaries = db
       .prepare(`
         SELECT 
@@ -48,6 +48,50 @@ export async function GET(request: NextRequest) {
         call_count: number;
         caller_name: string;
       }>;
+
+    // Get per-caller stats for ALL callers who made calls today (even without a summary)
+    const callerStats = db
+      .prepare(`
+        SELECT
+          c.caller_id,
+          COALESCE(u.display_name, u.username) AS caller_name,
+          COUNT(*) AS total_calls,
+          SUM(CASE WHEN c.outcome = 'INTERESTED' THEN 1 ELSE 0 END) AS interested,
+          SUM(CASE WHEN c.outcome = 'NOT_INTERESTED' THEN 1 ELSE 0 END) AS not_interested,
+          SUM(CASE WHEN c.outcome = 'NO_ANSWER' THEN 1 ELSE 0 END) AS no_answer,
+          SUM(CASE WHEN c.outcome = 'CALLBACK' THEN 1 ELSE 0 END) AS callback,
+          SUM(CASE WHEN c.outcome = 'ORDER_TAKEN' THEN 1 ELSE 0 END) AS order_taken
+        FROM calls c
+        JOIN users u ON c.caller_id = u.id
+        WHERE DATE(c.called_at) = ?
+        GROUP BY c.caller_id
+        ORDER BY total_calls DESC
+      `)
+      .all(targetDate) as Array<{
+        caller_id: string;
+        caller_name: string;
+        total_calls: number;
+        interested: number;
+        not_interested: number;
+        no_answer: number;
+        callback: number;
+        order_taken: number;
+      }>;
+
+    // Build a map from caller_id → summary notes (for callers who submitted)
+    const summaryMap = new Map(summaries.map(s => [s.caller_id, s.summary_notes]));
+
+    // Merge: every caller who made calls today, with their notes (or a placeholder)
+    const mergedCallers = callerStats.map(s => ({
+      caller_name: s.caller_name,
+      total_calls: s.total_calls,
+      interested: s.interested,
+      not_interested: s.not_interested,
+      no_answer: s.no_answer,
+      callback: s.callback,
+      order_taken: s.order_taken,
+      summary_notes: summaryMap.get(s.caller_id) ?? null,
+    }));
 
     // Get call statistics for the day
     const stats = db
@@ -107,11 +151,7 @@ export async function GET(request: NextRequest) {
     // Generate email content
     const emailContent = generateDailySummaryEmail({
       date: targetDate,
-      summaries: summaries.map(s => ({
-        caller_name: s.caller_name,
-        call_count: s.call_count,
-        summary_notes: s.summary_notes,
-      })),
+      callers: mergedCallers,
       stats,
       logs: logs.length > 0 ? logs : undefined,
     });

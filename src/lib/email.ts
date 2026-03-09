@@ -55,10 +55,15 @@ export async function sendEmail(config: EmailConfig): Promise<void> {
  */
 export function generateDailySummaryEmail(data: {
   date: string;
-  summaries: Array<{
+  callers: Array<{
     caller_name: string;
-    call_count: number;
-    summary_notes: string;
+    total_calls: number;
+    interested: number;
+    not_interested: number;
+    no_answer: number;
+    callback: number;
+    order_taken: number;
+    summary_notes: string | null;
   }>;
   stats: {
     total_calls: number;
@@ -82,41 +87,51 @@ export function generateDailySummaryEmail(data: {
         <style>
           body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; line-height: 1.6; color: #f1f5f9; background-color: #020617; max-width: 800px; margin: 0 auto; padding: 20px; }
           .header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border: 1px solid #334155; padding: 25px 30px; border-radius: 12px; margin-bottom: 30px; border-left: 4px solid #06b6d4; }
-          .header-title { color: #f8fafc; font-size: 24px; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 10px; }
+          .header-title { color: #f8fafc; font-size: 24px; font-weight: 700; margin: 0; }
           .header-title span { color: #06b6d4; }
           .header-date { color: #94a3b8; margin: 8px 0 0 0; font-size: 15px; }
-          
-          h2 { color: #f8fafc; font-size: 20px; font-weight: 600; margin: 35px 0 15px 0; border-bottom: 1px solid #334155; padding-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+
+          h2 { color: #f8fafc; font-size: 20px; font-weight: 600; margin: 35px 0 15px 0; border-bottom: 1px solid #334155; padding-bottom: 10px; }
           h2 span { color: #06b6d4; }
-          
+
           .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; margin: 20px 0; }
           .stat-card { background: #0f172a; border: 1px solid #334155; padding: 16px; border-radius: 10px; text-align: center; }
-          .stat-value { font-size: 28px; font-weight: 700; color: #f8fafc; line-height: 1; margin-bottom: 6px; }
+          .stat-value { font-size: 28px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
           .stat-value.primary { color: #06b6d4; }
           .stat-value.success { color: #10b981; }
           .stat-value.warning { color: #f59e0b; }
           .stat-label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
-          
-          .summary-card { background: #0f172a; border: 1px solid #334155; padding: 20px; border-radius: 12px; margin-bottom: 16px; }
-          .summary-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #1e293b; padding-bottom: 15px; }
-          .caller-name { font-size: 16px; font-weight: 600; color: #f8fafc; display: flex; align-items: center; gap: 8px; }
-          .caller-name::before { content: "👤"; font-size: 14px; }
-          .call-count { background: #06b6d4; color: #ffffff; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-          .notes { color: #cbd5e1; white-space: pre-wrap; background: #1e293b; padding: 16px; border-radius: 8px; font-size: 14px; border: 1px solid #334155; }
-          
-          .logs { background: #1e293b; color: #cbd5e1; padding: 16px; border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; max-height: 300px; overflow-y: auto; border: 1px solid #334155; border-left: 3px solid #f59e0b; }
-          
+
+          .caller-card { background: #0f172a; border: 1px solid #334155; border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+          .caller-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: #1e293b; border-bottom: 1px solid #334155; }
+          .caller-name { font-size: 16px; font-weight: 600; color: #f8fafc; }
+          .caller-name::before { content: "👤 "; }
+          .caller-mini-stats { display: flex; gap: 12px; padding: 14px 20px; flex-wrap: wrap; border-bottom: 1px solid #1e293b; }
+          .mini-stat { text-align: center; min-width: 60px; }
+          .mini-stat-value { font-size: 18px; font-weight: 700; }
+          .mini-stat-label { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px; }
+          .mini-stat-value.s-total { color: #06b6d4; }
+          .mini-stat-value.s-int { color: #10b981; }
+          .mini-stat-value.s-cb { color: #f59e0b; }
+          .mini-stat-value.s-ord { color: #a78bfa; }
+          .mini-stat-value.s-na { color: #94a3b8; }
+          .mini-stat-value.s-ni { color: #f87171; }
+          .caller-notes { padding: 16px 20px; }
+          .notes-text { color: #cbd5e1; white-space: pre-wrap; background: #1e293b; padding: 14px; border-radius: 8px; font-size: 14px; border: 1px solid #334155; }
+          .no-notes { color: #475569; font-style: italic; font-size: 13px; padding: 10px 0 4px 0; }
+
+          .logs { background: #1e293b; color: #cbd5e1; padding: 16px; border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; border: 1px solid #334155; border-left: 3px solid #f59e0b; }
           .footer { text-align: center; color: #64748b; font-size: 12px; margin-top: 40px; padding-top: 25px; border-top: 1px solid #1e293b; }
           .footer p { margin: 5px 0; }
         </style>
       </head>
       <body>
         <div class="header">
-          <h1 class="header-title"><span>DentCall</span> Дневен Отчет</h1>
+          <h1 class="header-title"><span>DentCall</span> — Дневен Отчет</h1>
           <p class="header-date">${format(new Date(data.date), 'EEEE, d MMMM yyyy г.')}</p>
         </div>
 
-        <h2><span>📈</span> Статистика за деня</h2>
+        <h2><span>📈</span> Обща Статистика</h2>
         <div class="stats">
           <div class="stat-card">
             <div class="stat-value primary">${totalCalls}</div>
@@ -136,22 +151,32 @@ export function generateDailySummaryEmail(data: {
           </div>
         </div>
 
-        <h2><span>📝</span> Обобщения от Операторите</h2>
-        ${data.summaries.length > 0 ? data.summaries.map(summary => `
-          <div class="summary-card">
-            <div class="summary-header">
-              <div class="caller-name">${summary.caller_name}</div>
-              <span class="call-count">${summary.call_count} обаждания</span>
+        <h2><span>👥</span> Оператори (${data.callers.length})</h2>
+        ${data.callers.length > 0 ? data.callers.map(caller => `
+          <div class="caller-card">
+            <div class="caller-header">
+              <div class="caller-name">${caller.caller_name}</div>
             </div>
-            <div class="notes">${summary.summary_notes}</div>
+            <div class="caller-mini-stats">
+              <div class="mini-stat"><div class="mini-stat-value s-total">${caller.total_calls}</div><div class="mini-stat-label">Общо</div></div>
+              <div class="mini-stat"><div class="mini-stat-value s-int">${caller.interested}</div><div class="mini-stat-label">Интерес</div></div>
+              <div class="mini-stat"><div class="mini-stat-value s-ord">${caller.order_taken}</div><div class="mini-stat-label">Поръчки</div></div>
+              <div class="mini-stat"><div class="mini-stat-value s-cb">${caller.callback}</div><div class="mini-stat-label">Преобажд.</div></div>
+              <div class="mini-stat"><div class="mini-stat-value s-na">${caller.no_answer}</div><div class="mini-stat-label">Няма отг.</div></div>
+              <div class="mini-stat"><div class="mini-stat-value s-ni">${caller.not_interested}</div><div class="mini-stat-label">Незаинт.</div></div>
+            </div>
+            <div class="caller-notes">
+              ${caller.summary_notes
+      ? `<div class="notes-text">${caller.summary_notes}</div>`
+      : `<div class="no-notes">Не е подал дневно обобщение.</div>`
+    }
+            </div>
           </div>
-        `).join('') : '<p style="color: #64748b; font-style: italic; background: #0f172a; padding: 20px; border-radius: 8px; border: 1px dashed #334155; text-align: center;">Няма подадени обобщения за този ден.</p>'}
+        `).join('') : '<p style="color: #64748b; font-style: italic; background: #0f172a; padding: 20px; border-radius: 8px; border: 1px dashed #334155; text-align: center;">Няма активност за този ден.</p>'}
 
         ${data.logs && data.logs.length > 0 ? `
           <h2><span>🔍</span> Системни Известия</h2>
-          <div class="logs">
-            ${data.logs.join('<br>')}
-          </div>
+          <div class="logs">${data.logs.join('<br>')}</div>
         ` : ''}
 
         <div class="footer">
@@ -163,9 +188,9 @@ export function generateDailySummaryEmail(data: {
   `;
 
   const text = `
-ДНЕВЕН ОТЧЕТ - ${format(new Date(data.date), 'EEEE, d MMMM yyyy г.')}
+ДНЕВЕН ОТЧЕТ — ${format(new Date(data.date), 'EEEE, d MMMM yyyy г.')}
 
-СТАТИСТИКА:
+ОБЩА СТАТИСТИКА:
 - Общо обаждания: ${totalCalls}
 - Заинтересовани: ${data.stats.interested}
 - Незаинтересовани: ${data.stats.not_interested}
@@ -174,17 +199,18 @@ export function generateDailySummaryEmail(data: {
 - Направени поръчки: ${data.stats.order_taken}
 - Успеваемост: ${interestedRate}%
 
-ОБОБЩЕНИЯ ОТ ОПЕРАТОРИТЕ:
-${data.summaries.length > 0 ? data.summaries.map(summary => `
-👤 ${summary.caller_name} (${summary.call_count} обаждания):
-${summary.summary_notes}
+ОПЕРАТОРИ:
+${data.callers.length > 0 ? data.callers.map(caller => `
+👤 ${caller.caller_name}
+   Общо: ${caller.total_calls} | Интерес: ${caller.interested} | Поръчки: ${caller.order_taken} | Преобажд.: ${caller.callback} | Нняма отг.: ${caller.no_answer} | Незаинт.: ${caller.not_interested}
+${caller.summary_notes
+      ? `   Обобщение:\n   ${caller.summary_notes.replace(/\n/g, '\n   ')}`
+      : '   Не е подал дневно обобщение.'
+    }
 -------------------------------------------
-`).join('\n') : 'Няма подадени обобщения за този ден.'}
+`).join('\n') : 'Няма активност за този ден.'}
 
-${data.logs && data.logs.length > 0 ? `
-СИСТЕМНИ ИЗВЕСТИЯ:
-${data.logs.join('\n')}
-` : ''}
+${data.logs && data.logs.length > 0 ? `СИСТЕМНИ ИЗВЕСТИЯ:\n${data.logs.join('\n')}\n` : ''}
 
 ---
 Автоматичен ежедневен отчет от DentCall Cold Caller System
@@ -193,3 +219,4 @@ ${data.logs.join('\n')}
 
   return { html, text };
 }
+
