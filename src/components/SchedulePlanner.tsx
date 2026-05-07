@@ -719,12 +719,12 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated, initialR
                                     value={scheduleDays}
                                     onChange={(e) => setScheduleDays(parseInt(e.target.value))}
                                     min={1}
-                                    max={14}
+                                    max={20}
                                     className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                                 />
                                 <div className="flex justify-between text-[10px] text-slate-500 mt-1">
                                     <span>1 Day</span>
-                                    <span>2 Weeks</span>
+                                    <span>4 Weeks</span>
                                 </div>
                             </div>
 
