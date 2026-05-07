@@ -62,7 +62,7 @@ export default function SchedulePlanner({ onClose, onScheduleGenerated, initialR
     const [selectedCallers, setSelectedCallers] = useState<string[]>(initialCallers || []);
     const [availableCities, setAvailableCities] = useState<{ region: string; cities: CityWithStats[] }[]>([]);
     const [citySearch, setCitySearch] = useState('');
-    const [scheduleDays, setScheduleDays] = useState(7);
+    const [scheduleDays, setScheduleDays] = useState(5);
     const [scheduleStartDate, setScheduleStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
     const [excludeDays, setExcludeDays] = useState(7);
     const [appendMode, setAppendMode] = useState(false);

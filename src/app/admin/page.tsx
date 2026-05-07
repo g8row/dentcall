@@ -103,7 +103,7 @@ export default function AdminDashboard() {
     const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
     const [selectedCities, setSelectedCities] = useState<string[]>([]);
     const [availableCities, setAvailableCities] = useState<string[]>([]);
-    const [scheduleDays, setScheduleDays] = useState(7);
+    const [scheduleDays, setScheduleDays] = useState(5);
     const [scheduleStartDate, setScheduleStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
     const [appendMode, setAppendMode] = useState(false);
     const [scheduleResult, setScheduleResult] = useState<{ message: string; region_breakdown?: Record<string, number> } | null>(null);

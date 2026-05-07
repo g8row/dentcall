@@ -490,7 +490,10 @@ export async function POST(request: NextRequest) {
 
         const insertMany = db.transaction(() => {
             for (let day = 0; day < days; day++) {
-                const currentDate = format(addDays(new Date(start_date), day), 'yyyy-MM-dd');
+                const currentDateObj = addDays(new Date(start_date), day);
+                const dow = currentDateObj.getDay();
+                if (dow === 0 || dow === 6) continue; // skip Sun/Sat
+                const currentDate = format(currentDateObj, 'yyyy-MM-dd');
 
                 for (const caller of callers) {
                     for (let i = 0; i < caller.daily_target; i++) {
