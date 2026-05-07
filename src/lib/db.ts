@@ -214,13 +214,13 @@ const db = new Proxy({} as Database.Database, {
 
 export default db;
 
-// Initialize backup scheduler
-import { initBackupScheduler } from './scheduler';
+// Initialize background scheduler
+import { initScheduler } from './scheduler';
 // Only run in production or distinct dev server environment to avoid hot-reload spam, 
 // but for simplicity/robustness here we just run it. 
-// A check for global var prevents re-init (handled inside initBackupScheduler).
+// A check for global var prevents re-init (handled inside initScheduler).
 if (process.env.NODE_ENV !== 'test') {
-  initBackupScheduler();
+  initScheduler();
 }
 
 
