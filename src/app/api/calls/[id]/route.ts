@@ -29,7 +29,7 @@ export async function PATCH(
             return NextResponse.json({ error: 'Cannot edit other users\' calls' }, { status: 403 });
         }
 
-        const validOutcomes = ['INTERESTED', 'NOT_INTERESTED', 'NO_ANSWER', 'CALLBACK', 'ORDER_TAKEN'];
+        const validOutcomes = ['INTERESTED', 'NOT_INTERESTED', 'NO_ANSWER', 'CALLBACK', 'ORDER_TAKEN', 'ARCHIVED'];
         if (outcome && !validOutcomes.includes(outcome)) {
             return NextResponse.json({ error: 'Invalid outcome' }, { status: 400 });
         }

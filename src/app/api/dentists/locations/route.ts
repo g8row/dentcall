@@ -23,12 +23,13 @@ export async function GET(request: NextRequest) {
     // If no filters, return all regions with counts
     if (!region) {
         const regions = db.prepare(`
-      SELECT 
+      SELECT
         region,
         COUNT(*) as dentist_count,
         COUNT(DISTINCT cities_served) as city_count
-      FROM dentists 
-      GROUP BY region 
+      FROM dentists
+      WHERE archived_at IS NULL
+      GROUP BY region
       ORDER BY region
     `).all() as { region: string; dentist_count: number; city_count: number }[];
 
@@ -44,16 +45,16 @@ export async function GET(request: NextRequest) {
         // Get all dentists in region
         const dentists = db.prepare(`
       SELECT id, locations, cities_served, preferred_caller_id
-      FROM dentists 
-      WHERE region = ?
+      FROM dentists
+      WHERE region = ? AND archived_at IS NULL
     `).all(region) as { id: string; locations: string; cities_served: string; preferred_caller_id: string | null }[];
 
-        // Get unavailable dentist IDs (interested, rejected)
+        // Get unavailable dentist IDs (already converted — interested or order taken)
         const unavailable = new Set(
             (db.prepare(`
-        SELECT DISTINCT dentist_id 
-        FROM calls 
-        WHERE outcome IN ('INTERESTED', 'NOT_INTERESTED')
+        SELECT DISTINCT dentist_id
+        FROM calls
+        WHERE outcome IN ('INTERESTED', 'ORDER_TAKEN')
       `).all() as { dentist_id: string }[]).map(r => r.dentist_id)
         );
 

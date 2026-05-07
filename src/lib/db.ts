@@ -180,6 +180,14 @@ function getDb(): Database.Database {
     logger.migration('Added eik column to dentists table');
   }
 
+  // Migration: Add archived_at column to dentists for soft-delete
+  const hasArchivedAt = dentistColumns.some(col => col.name === 'archived_at');
+  if (!hasArchivedAt) {
+    _db.exec(`ALTER TABLE dentists ADD COLUMN archived_at TEXT`);
+    logger.migration('Added archived_at column to dentists table');
+  }
+  _db.exec(`CREATE INDEX IF NOT EXISTS idx_dentists_archived_at ON dentists(archived_at)`);
+
   // Migration: Add display_name column to users if it doesn't exist
   const hasDisplayName = userColumns.some(col => col.name === 'display_name');
   if (!hasDisplayName) {

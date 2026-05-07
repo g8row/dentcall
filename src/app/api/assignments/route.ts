@@ -360,20 +360,26 @@ export async function POST(request: NextRequest) {
             locationParams.push(...cities.map((c: string) => `%${c}%`));
         }
 
+        // Cooldown: dentists who said "not interested now" within this many days
+        // are skipped from new assignments. They re-enter the pool afterwards.
+        const NOT_INTERESTED_COOLDOWN_DAYS = 7;
+
         // Get dentists with smart prioritization
         const dentists = db.prepare(`
       SELECT d.id, d.region, d.cities_served, d.preferred_caller_id,
              MAX(c.called_at) as last_called,
              MAX(CASE WHEN c.outcome = 'CALLBACK' THEN 1 ELSE 0 END) as has_callback,
              MAX(CASE WHEN c.outcome = 'INTERESTED' THEN 1 ELSE 0 END) as already_interested,
-             MAX(CASE WHEN c.outcome = 'NOT_INTERESTED' THEN 1 ELSE 0 END) as already_rejected,
-             MAX(CASE WHEN c.outcome = 'ORDER_TAKEN' THEN 1 ELSE 0 END) as already_ordered
+             MAX(CASE WHEN c.outcome = 'ORDER_TAKEN' THEN 1 ELSE 0 END) as already_ordered,
+             MAX(CASE WHEN c.outcome = 'NOT_INTERESTED'
+                       AND c.called_at >= datetime('now', '-${NOT_INTERESTED_COOLDOWN_DAYS} days')
+                  THEN 1 ELSE 0 END) as in_cooldown
       FROM dentists d
       LEFT JOIN calls c ON d.id = c.dentist_id
-      WHERE 1=1 ${locationFilter}
+      WHERE d.archived_at IS NULL ${locationFilter}
       GROUP BY d.id
-      HAVING already_interested = 0 AND already_rejected = 0 AND already_ordered = 0
-      ORDER BY 
+      HAVING already_interested = 0 AND already_ordered = 0 AND in_cooldown = 0
+      ORDER BY
         has_callback DESC,
         last_called IS NULL DESC,
         last_called ASC
@@ -384,7 +390,8 @@ export async function POST(request: NextRequest) {
             last_called: string | null;
             has_callback: number;
             already_interested: number;
-            already_rejected: number;
+            already_ordered: number;
+            in_cooldown: number;
         }[];
 
         // Calculate total calls needed
@@ -395,7 +402,7 @@ export async function POST(request: NextRequest) {
         if (dentists.length === 0) {
             return NextResponse.json({
                 success: false,
-                error: 'No available dentists in the selected area (excluding already interested/rejected)',
+                error: 'No available dentists in the selected area (excluding already interested/ordered/in cooldown)',
                 available_dentists: 0,
                 needed: totalCallsNeeded
             }, { status: 400 });

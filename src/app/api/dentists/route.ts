@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const offset = (page - 1) * limit;
 
-    let whereClause = '1=1';
+    let whereClause = 'archived_at IS NULL';
     const params: (string | number)[] = [];
 
     if (region) {

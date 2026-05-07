@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const validOutcomes = ['INTERESTED', 'NOT_INTERESTED', 'NO_ANSWER', 'CALLBACK', 'ORDER_TAKEN'];
+        const validOutcomes = ['INTERESTED', 'NOT_INTERESTED', 'NO_ANSWER', 'CALLBACK', 'ORDER_TAKEN', 'ARCHIVED'];
         if (!validOutcomes.includes(outcome)) {
             return NextResponse.json(
                 { error: 'Invalid outcome' },
@@ -85,6 +85,11 @@ export async function POST(request: NextRequest) {
       INSERT INTO calls (id, dentist_id, caller_id, outcome, notes, called_at)
       VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))
     `).run(id, dentist_id, session.user.id, outcome, notes || null);
+
+        // ARCHIVED outcome also soft-deletes the dentist
+        if (outcome === 'ARCHIVED') {
+            db.prepare(`UPDATE dentists SET archived_at = datetime('now') WHERE id = ?`).run(dentist_id);
+        }
 
         // Update assignment notes so the "sticky note" stays in sync
         db.prepare(`

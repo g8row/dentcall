@@ -60,23 +60,25 @@ export async function GET(request: NextRequest) {
     SELECT 
       rs.*,
       -- Available = not interested, not rejected, not called recently
-      (SELECT COUNT(*) FROM dentists d2 
-       WHERE d2.region = rs.region 
+      (SELECT COUNT(*) FROM dentists d2
+       WHERE d2.region = rs.region
+       AND d2.archived_at IS NULL
        AND d2.id NOT IN (
-         SELECT dentist_id FROM calls 
-         WHERE outcome IN ('INTERESTED', 'NOT_INTERESTED')
+         SELECT dentist_id FROM calls
+         WHERE outcome IN ('INTERESTED', 'ORDER_TAKEN')
        )
        ${excludeDays > 0 ? `AND d2.id NOT IN (
-         SELECT dentist_id FROM calls 
+         SELECT dentist_id FROM calls
          WHERE DATE(called_at) > DATE('now', '-${excludeDays} days')
        )` : ''}
       ) as available_dentists,
-      (SELECT COUNT(*) FROM dentists d3 
-       WHERE d3.region = rs.region 
+      (SELECT COUNT(*) FROM dentists d3
+       WHERE d3.region = rs.region
+       AND d3.archived_at IS NULL
        AND d3.preferred_caller_id IS NOT NULL
        AND d3.id NOT IN (
-         SELECT dentist_id FROM calls 
-         WHERE outcome IN ('INTERESTED', 'NOT_INTERESTED')
+         SELECT dentist_id FROM calls
+         WHERE outcome IN ('INTERESTED', 'ORDER_TAKEN')
        )
        ${excludeDays > 0 ? `AND d3.id NOT IN (
          SELECT dentist_id FROM calls 
@@ -176,9 +178,9 @@ export async function GET(request: NextRequest) {
       COUNT(*) as count
     FROM dentists d
     JOIN users u ON d.preferred_caller_id = u.id
-    WHERE d.id NOT IN (
+    WHERE d.archived_at IS NULL AND d.id NOT IN (
       SELECT dentist_id FROM calls 
-      WHERE outcome IN ('INTERESTED', 'NOT_INTERESTED')
+      WHERE outcome IN ('INTERESTED', 'ORDER_TAKEN')
     )
     ${excludeDays > 0 ? `AND d.id NOT IN (
       SELECT dentist_id FROM calls 
@@ -204,9 +206,10 @@ export async function GET(request: NextRequest) {
       SELECT COUNT(*) as count
       FROM dentists d
       WHERE d.preferred_caller_id = ?
+      AND d.archived_at IS NULL
       AND d.id NOT IN (
         SELECT dentist_id FROM calls 
-        WHERE outcome IN ('INTERESTED', 'NOT_INTERESTED')
+        WHERE outcome IN ('INTERESTED', 'ORDER_TAKEN')
       )
       ${excludeDays > 0 ? `AND d.id NOT IN (
         SELECT dentist_id FROM calls 
@@ -239,9 +242,10 @@ export async function GET(request: NextRequest) {
     SELECT COUNT(*) as count
     FROM dentists d
     WHERE d.wants_implants = 1
+    AND d.archived_at IS NULL
     AND d.id NOT IN (
       SELECT dentist_id FROM calls 
-      WHERE outcome IN ('INTERESTED', 'NOT_INTERESTED')
+      WHERE outcome IN ('INTERESTED', 'ORDER_TAKEN')
     )
     ${excludeDays > 0 ? `AND d.id NOT IN (
       SELECT dentist_id FROM calls 

@@ -44,7 +44,7 @@ interface CallLog {
 
 const OUTCOMES = [
     { value: 'INTERESTED', key: 'interested', emoji: '✅', color: 'emerald', bg: 'bg-emerald-500/20', border: 'border-emerald-500', text: 'text-emerald-400' },
-    { value: 'NOT_INTERESTED', key: 'not_interested', emoji: '❌', color: 'red', bg: 'bg-red-500/20', border: 'border-red-500', text: 'text-red-400' },
+    { value: 'NOT_INTERESTED', key: 'not_interested_now', emoji: '❌', color: 'red', bg: 'bg-red-500/20', border: 'border-red-500', text: 'text-red-400' },
     { value: 'NO_ANSWER', key: 'no_answer', emoji: '📵', color: 'slate', bg: 'bg-slate-600/30', border: 'border-slate-500', text: 'text-slate-400' },
     { value: 'CALLBACK', key: 'callback', emoji: '📞', color: 'amber', bg: 'bg-amber-500/20', border: 'border-amber-500', text: 'text-amber-400' },
     { value: 'ORDER_TAKEN', key: 'order_taken', emoji: '📦', color: 'cyan', bg: 'bg-cyan-500/20', border: 'border-cyan-500', text: 'text-cyan-400' },
@@ -196,6 +196,29 @@ export default function CallerDashboard() {
                     notes: notes[dentistId] || '',
                     called_at: new Date().toISOString(),
                 }, ...todayCalls]);
+                setActiveCard(null);
+                setNotes({ ...notes, [dentistId]: '' });
+            }
+        } finally {
+            setSubmitting(null);
+        }
+    };
+
+    const handleArchiveDentist = async (dentistId: string) => {
+        if (!confirm(t('archive_dentist_confirm'))) return;
+        setSubmitting(dentistId);
+        try {
+            const res = await fetch('/api/calls', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    dentist_id: dentistId,
+                    outcome: 'ARCHIVED',
+                    notes: notes[dentistId] || null,
+                }),
+            });
+            if (res.ok) {
+                setAssignments(prev => prev.filter(a => a.dentist_id !== dentistId));
                 setActiveCard(null);
                 setNotes({ ...notes, [dentistId]: '' });
             }
@@ -734,6 +757,17 @@ export default function CallerDashboard() {
                                                             <span>{t(outcome.key as any)}</span>
                                                         </button>
                                                     ))}
+                                                </div>
+                                                <div className="flex justify-center mt-3">
+                                                    <button
+                                                        onClick={() => handleArchiveDentist(assignment.dentist_id)}
+                                                        disabled={submitting === assignment.dentist_id}
+                                                        className="px-4 py-2 rounded-lg border border-slate-600 bg-slate-800/60 hover:bg-red-900/40 hover:border-red-500/60 text-slate-400 hover:text-red-300 text-xs font-medium transition flex items-center gap-2 disabled:opacity-50"
+                                                        title={t('archive_dentist_confirm')}
+                                                    >
+                                                        <span>🗑️</span>
+                                                        <span>{t('archive_dentist')}</span>
+                                                    </button>
                                                 </div>
                                             </div>
 

@@ -25,14 +25,14 @@ export async function PATCH(
 
         // Validation for CALLER role
         if (!isAdmin) {
-            // Callers can ONLY update: eik
-            const allowedFields = ['eik'];
+            // Callers can update: eik, archived (soft delete / restore)
+            const allowedFields = ['eik', 'archived'];
             const attemptedFields = Object.keys(body);
             const hasForbiddenFields = attemptedFields.some(f => !allowedFields.includes(f));
 
             if (hasForbiddenFields) {
                 return NextResponse.json({
-                    error: 'Unauthorized: Callers can only update EIK'
+                    error: 'Unauthorized: Callers can only update EIK or archive'
                 }, { status: 403 });
             }
         }
@@ -83,6 +83,11 @@ export async function PATCH(
             setClauses.push('eik = ?');
             params.push(body.eik || null);
         }
+        if (body.archived !== undefined) {
+            // Allowed for everyone — soft delete / restore
+            setClauses.push('archived_at = ?');
+            params.push(body.archived ? new Date().toISOString() : null);
+        }
         // Handle address/email if you have those columns, but schema in db.ts only lists standard ones + 'locations'
         // If 'address' or 'email' were passed, they might need to go into a 'locations' JSON or ignored if no column.
         // Looking at db.ts scheme: facility_name, region, manager, phones, services, cities_served, locations, staff, preferred_caller_id
@@ -116,6 +121,12 @@ export async function PATCH(
         params.push(id);
         const stmt = db.prepare(`UPDATE dentists SET ${setClauses.join(', ')} WHERE id = ?`);
         stmt.run(...params);
+
+        // When archiving, also remove any pending assignments so the dentist
+        // disappears from caller todo lists immediately.
+        if (body.archived === true) {
+            db.prepare('DELETE FROM assignments WHERE dentist_id = ? AND completed = 0').run(id);
+        }
 
         return NextResponse.json({ success: true });
 

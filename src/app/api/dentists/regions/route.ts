@@ -11,7 +11,7 @@ export async function GET() {
     }
 
     const regions = db.prepare(`
-    SELECT DISTINCT region FROM dentists ORDER BY region
+    SELECT DISTINCT region FROM dentists WHERE archived_at IS NULL ORDER BY region
   `).all() as { region: string }[];
 
     return NextResponse.json({ regions: regions.map(r => r.region) });

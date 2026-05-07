@@ -78,9 +78,9 @@ export async function GET() {
 
     try {
         // 1. Overview Stats
-        const totalDentists = (db.prepare(`SELECT COUNT(*) as count FROM dentists`).get() as { count: number }).count;
+        const totalDentists = (db.prepare(`SELECT COUNT(*) as count FROM dentists WHERE archived_at IS NULL`).get() as { count: number }).count;
         const totalCalls = (db.prepare(`SELECT COUNT(*) as count FROM calls`).get() as { count: number }).count;
-        const implantsEnabled = (db.prepare(`SELECT COUNT(*) as count FROM dentists WHERE wants_implants = 1`).get() as { count: number }).count;
+        const implantsEnabled = (db.prepare(`SELECT COUNT(*) as count FROM dentists WHERE wants_implants = 1 AND archived_at IS NULL`).get() as { count: number }).count;
 
         const outcomesCounts = db.prepare(`
             SELECT 
@@ -159,6 +159,7 @@ export async function GET() {
                 SUM(CASE WHEN c.outcome = 'ORDER_TAKEN' THEN 1 ELSE 0 END) as order_taken
             FROM dentists d
             LEFT JOIN calls c ON d.id = c.dentist_id
+            WHERE d.archived_at IS NULL
             GROUP BY d.region
             ORDER BY d.region
         `).all() as Array<{

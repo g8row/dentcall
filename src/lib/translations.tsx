@@ -100,6 +100,10 @@ const translations = {
         // Colors/Status
         interested: 'Interested',
         not_interested: 'Not Interested',
+        not_interested_now: 'Not interested now',
+        archive_dentist: 'Remove from database',
+        archive_dentist_confirm: 'Remove this dentist from the database? They will no longer appear in lists.',
+        archived: 'Removed from database',
         no_answer: 'No Answer',
         callback: 'Callback',
         other: 'Other',
@@ -524,6 +528,10 @@ const translations = {
         // Colors/Status
         interested: 'Заинтересован',
         not_interested: 'Не се интересува',
+        not_interested_now: 'Няма интерес към момента',
+        archive_dentist: 'Махни от базата данни',
+        archive_dentist_confirm: 'Сигурни ли сте, че искате да премахнете този доктор от базата данни? Той няма да се появява в списъците.',
+        archived: 'Премахнат от базата',
         no_answer: 'Няма отговор',
         callback: 'Обратна връзка',
         other: 'Друго',

@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const region = searchParams.get('region');
 
-    const whereClause = region ? 'WHERE d.region = ?' : '';
+    const whereClause = region ? 'WHERE d.region = ? AND d.archived_at IS NULL' : 'WHERE d.archived_at IS NULL';
     const params = region ? [region] : [];
 
     const stats = db.prepare(`

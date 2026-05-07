@@ -182,7 +182,8 @@ export default function StatsDashboard() {
             outcome === 'NOT_INTERESTED' ? t('not_interested') :
                 outcome === 'NO_ANSWER' ? t('no_answer') :
                     outcome === 'CALLBACK' ? t('callback') :
-                        outcome === 'ORDER_TAKEN' ? t('order_taken') : outcome;
+                        outcome === 'ORDER_TAKEN' ? t('order_taken') :
+                            outcome === 'ARCHIVED' ? t('archived') : outcome;
     };
 
     return (

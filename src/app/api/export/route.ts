@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
           (SELECT called_at FROM calls WHERE dentist_id = d.id ORDER BY called_at DESC LIMIT 1) as "Last Called"
         FROM dentists d
         LEFT JOIN users u ON d.preferred_caller_id = u.id
+        WHERE d.archived_at IS NULL
         ORDER BY d.region, d.facility_name
       `).all() as Record<string, unknown>[];
 
@@ -79,6 +80,7 @@ export async function GET(request: NextRequest) {
         'NO_ANSWER': 'Няма отговор',
         'CALLBACK': 'Обратна връзка',
         'ORDER_TAKEN': 'Взета заявка',
+        'ARCHIVED': 'Премахнат от базата',
         'IMPLANT_STATUS': 'Промяна на статус импланти',
       };
 

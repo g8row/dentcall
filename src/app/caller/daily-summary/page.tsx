@@ -32,7 +32,7 @@ interface DailySummary {
   created_at: string;
 }
 
-type OutcomeKey = 'interested' | 'not_interested' | 'no_answer' | 'callback' | 'order_taken' | 'other';
+type OutcomeKey = 'interested' | 'not_interested' | 'no_answer' | 'callback' | 'order_taken' | 'archived' | 'other';
 
 const OUTCOME_LABELS: Record<string, OutcomeKey> = {
   INTERESTED: 'interested',
@@ -40,6 +40,7 @@ const OUTCOME_LABELS: Record<string, OutcomeKey> = {
   NO_ANSWER: 'no_answer',
   CALLBACK: 'callback',
   ORDER_TAKEN: 'order_taken',
+  ARCHIVED: 'archived',
 };
 
 export default function DailySummaryPage() {
