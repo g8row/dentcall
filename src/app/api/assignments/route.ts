@@ -379,6 +379,9 @@ export async function POST(request: NextRequest) {
       FROM dentists d
       LEFT JOIN calls c ON d.id = c.dentist_id
       WHERE d.archived_at IS NULL ${locationFilter}
+        AND d.id NOT IN (
+          SELECT dentist_id FROM assignments WHERE completed = 0
+        )
       GROUP BY d.id
       HAVING already_interested = 0 AND already_ordered = 0 AND in_cooldown = 0
       ORDER BY
