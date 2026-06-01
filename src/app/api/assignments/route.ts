@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
 
         const assignments = db.prepare(`
     WITH LatestCalls AS (
-        SELECT id, dentist_id, outcome, notes, called_at,
+        SELECT id, dentist_id, caller_id, outcome, notes, called_at,
                ROW_NUMBER() OVER (PARTITION BY dentist_id ORDER BY called_at DESC) as rn
         FROM calls
     ),
@@ -97,12 +97,14 @@ export async function GET(request: NextRequest) {
     SELECT a.*, d.facility_name, d.region, d.phones, d.manager, d.cities_served, d.preferred_caller_id, d.wants_implants, d.eik,
            COALESCE(u.display_name, u.username) as caller_name, a.notes,
            lc.outcome as last_outcome, lc.id as last_call_id, lc.notes as call_notes, lc.called_at as last_called_at,
+           COALESCE(nu.display_name, nu.username) as note_author,
            lo.last_order_at
     FROM assignments a
     JOIN dentists d ON a.dentist_id = d.id
     JOIN users u ON a.caller_id = u.id
     LEFT JOIN campaigns c ON a.campaign_id = c.id
     LEFT JOIN LatestCalls lc ON a.dentist_id = lc.dentist_id AND lc.rn = 1
+    LEFT JOIN users nu ON lc.caller_id = nu.id
     LEFT JOIN LastOrders lo ON a.dentist_id = lo.dentist_id
     WHERE ${whereClause} AND (c.status IS NULL OR c.status != 'CANCELLED')
     ORDER BY ${sortBy}

@@ -31,6 +31,7 @@ interface Assignment {
     last_call_id?: string;
     call_notes?: string;
     last_called_at?: string;
+    note_author?: string;
     last_order_at?: string;
 }
 
@@ -676,6 +677,12 @@ export default function CallerDashboard() {
                                         {isCompleted && call?.notes && !isEditing && (
                                             <div className="mt-3 text-sm text-slate-400 italic">
                                                 &quot;{call.notes}&quot;
+                                                <span className="not-italic text-slate-500 ml-2 text-xs">
+                                                    — {assignment.note_author || t('unknown')}
+                                                    {assignment.last_called_at && (
+                                                        <>, {format(new Date(assignment.last_called_at), 'dd.MM.yyyy')}</>
+                                                    )}
+                                                </span>
                                             </div>
                                         )}
                                     </div>
