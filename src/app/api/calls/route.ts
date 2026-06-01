@@ -91,20 +91,20 @@ export async function POST(request: NextRequest) {
             db.prepare(`UPDATE dentists SET archived_at = datetime('now') WHERE id = ?`).run(dentist_id);
         }
 
-        // Update assignment notes so the "sticky note" stays in sync
+        // Update assignment notes so the "sticky note" stays in sync (only for this caller)
         db.prepare(`
-      UPDATE assignments 
-      SET notes = ? 
-      WHERE dentist_id = ? AND completed = 0
-    `).run(notes || null, dentist_id);
+      UPDATE assignments
+      SET notes = ?
+      WHERE dentist_id = ? AND caller_id = ? AND completed = 0
+    `).run(notes || null, dentist_id, session.user.id);
 
-        // Mark assignment as completed if exists (regardless of date or caller)
-        // If we called them, any pending assignment for this dentist is considered done
+        // Mark assignment as completed — scoped to this caller only so other callers'
+        // assignments for the same dentist are not incorrectly marked done.
         db.prepare(`
-      UPDATE assignments 
-      SET completed = 1 
-      WHERE dentist_id = ? AND completed = 0
-    `).run(dentist_id);
+      UPDATE assignments
+      SET completed = 1
+      WHERE dentist_id = ? AND caller_id = ? AND completed = 0
+    `).run(dentist_id, session.user.id);
 
         return NextResponse.json({ success: true, id });
     } catch (error) {
